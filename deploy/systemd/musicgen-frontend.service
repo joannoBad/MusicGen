@@ -1,0 +1,16 @@
+[Unit]
+Description=MusicGen Next.js frontend
+After=network.target musicgen-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/musicgen/frontend
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=3
+User=musicgen
+Environment=PORT=3000
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

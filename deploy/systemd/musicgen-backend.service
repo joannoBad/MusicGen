@@ -1,0 +1,15 @@
+[Unit]
+Description=MusicGen FastAPI backend
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/musicgen/backend
+ExecStart=/opt/musicgen/backend/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=3
+User=musicgen
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
