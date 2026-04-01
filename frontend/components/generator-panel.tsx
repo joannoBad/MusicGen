@@ -16,6 +16,7 @@ type LimitModalState = {
 
 const MAX_UPLOAD_SIZE_BYTES = audioLimits.maxUploadSizeMb * 1024 * 1024;
 const MAX_DURATION_SECONDS = audioLimits.maxDurationSeconds;
+const TRIMMED_SAMPLE_RATE = 22_050;
 
 const COPY = {
   en: {
@@ -23,7 +24,7 @@ const COPY = {
     uploadAudio: "Upload audio",
     modeTitle: "Fingerprint mode",
     output: "Output",
-    fingerprintResult: "Fingerprint result",
+    fingerprintResult: "Generated password",
     signalLoaded: "Signal loaded",
     waitingSignal: "Waiting for signal",
     pcmLock: "PCM lock",
@@ -41,34 +42,35 @@ const COPY = {
     localOnly: "Audio is sent only to the server used by this app instance.",
     chooseFileError: "Choose an audio file before generating a password.",
     genericError: "The generator failed before it could produce a password.",
+    trimFailed: "The browser could not prepare a trimmed version of this audio.",
     password: "Password",
     mode: "Mode",
     algorithm: "Algorithm",
-    fingerprintPreview: "Fingerprint preview",
     previewAudio: "Preview audio",
     generationProgress: "Generation progress",
     progressWaiting: "Preparing audio stream",
     progressAnalyzing: "Analyzing spectral fingerprint",
     progressEncoding: "Encoding password output",
-    empty: "The generated password and its fingerprint trace will appear here after analysis.",
-    trimEnabled: "Trim on upload enabled",
+    empty: "The generated password will appear here after analysis.",
+    trimEnabled: "Trimmed on this device before upload",
     limitTitle: "Audio exceeds the generator limits",
     limitMessage:
-      "This file is larger or longer than the current generator limits. You can trim it to the supported duration or choose another file.",
+      "This file is larger or longer than the current generator limits. You can trim it in the browser before upload or choose another file.",
     limitDetails: "Current limit",
     trimAction: "Trim and continue",
     replaceAction: "Choose another",
     copied: "Copied",
-    copy: "Copy",
-    show: "Show",
-    hide: "Hide"
+    copy: "Copy password",
+    show: "Show password",
+    hide: "Hide password",
+    trimming: "Preparing trimmed audio..."
   },
   ru: {
     input: "Ввод",
     uploadAudio: "Загрузка аудио",
     modeTitle: "Режим отпечатка",
     output: "Результат",
-    fingerprintResult: "Результат отпечатка",
+    fingerprintResult: "Сгенерированный пароль",
     signalLoaded: "Сигнал загружен",
     waitingSignal: "Ожидание сигнала",
     pcmLock: "PCM lock",
@@ -86,27 +88,28 @@ const COPY = {
     localOnly: "Аудио отправляется только на сервер этого приложения.",
     chooseFileError: "Сначала выберите аудиофайл.",
     genericError: "Генератор не смог создать пароль.",
+    trimFailed: "Браузер не смог подготовить обрезанную версию этого аудио.",
     password: "Пароль",
     mode: "Режим",
     algorithm: "Алгоритм",
-    fingerprintPreview: "Превью отпечатка",
     previewAudio: "Прослушать аудио",
     generationProgress: "Ход генерации",
     progressWaiting: "Подготовка аудиопотока",
     progressAnalyzing: "Анализ спектрального отпечатка",
     progressEncoding: "Формирование пароля",
-    empty: "Сгенерированный пароль и краткий след отпечатка появятся здесь после анализа.",
-    trimEnabled: "Обрезка при загрузке включена",
+    empty: "Сгенерированный пароль появится здесь после анализа.",
+    trimEnabled: "Аудио обрезано на этом устройстве перед загрузкой",
     limitTitle: "Аудио превышает лимиты генератора",
     limitMessage:
-      "Этот файл больше или длиннее допустимых лимитов. Вы можете обрезать его до поддерживаемой длительности или выбрать другой файл.",
+      "Этот файл больше или длиннее допустимых лимитов. Вы можете обрезать его прямо в браузере перед загрузкой или выбрать другой файл.",
     limitDetails: "Текущий лимит",
     trimAction: "Обрезать и продолжить",
     replaceAction: "Выбрать другой",
     copied: "Скопировано",
-    copy: "Копировать",
-    show: "Показать",
-    hide: "Скрыть"
+    copy: "Скопировать пароль",
+    show: "Показать пароль",
+    hide: "Скрыть пароль",
+    trimming: "Подготовка обрезанного аудио..."
   }
 } as const;
 
@@ -136,6 +139,149 @@ function formatDuration(seconds: number): string {
   return `${minutes}:${remainder.toString().padStart(2, "0")}`;
 }
 
+function mixToMono(channels: Float32Array[]): Float32Array {
+  if (channels.length === 1) {
+    return channels[0];
+  }
+
+  const mono = new Float32Array(channels[0].length);
+  for (let index = 0; index < mono.length; index += 1) {
+    let sum = 0;
+    for (const channel of channels) {
+      sum += channel[index] ?? 0;
+    }
+    mono[index] = sum / channels.length;
+  }
+
+  return mono;
+}
+
+function resampleMono(samples: Float32Array, sourceRate: number, targetRate: number): Float32Array {
+  if (sourceRate === targetRate) {
+    return samples;
+  }
+
+  const duration = samples.length / sourceRate;
+  const targetLength = Math.max(1, Math.round(duration * targetRate));
+  const output = new Float32Array(targetLength);
+  const ratio = sourceRate / targetRate;
+
+  for (let index = 0; index < targetLength; index += 1) {
+    const position = index * ratio;
+    const left = Math.floor(position);
+    const right = Math.min(left + 1, samples.length - 1);
+    const weight = position - left;
+    output[index] = samples[left] * (1 - weight) + samples[right] * weight;
+  }
+
+  return output;
+}
+
+function encodeWavFromMono(samples: Float32Array, sampleRate: number): Blob {
+  const bytesPerSample = 2;
+  const blockAlign = bytesPerSample;
+  const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
+  const view = new DataView(buffer);
+
+  const writeString = (offset: number, value: string) => {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+  };
+
+  writeString(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * bytesPerSample, true);
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, 16, true);
+  writeString(36, "data");
+  view.setUint32(40, samples.length * bytesPerSample, true);
+
+  let offset = 44;
+  for (const sample of samples) {
+    const clamped = Math.max(-1, Math.min(1, sample));
+    view.setInt16(offset, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true);
+    offset += bytesPerSample;
+  }
+
+  return new Blob([buffer], { type: "audio/wav" });
+}
+
+async function trimAudioInBrowser(file: File, targetDurationSeconds: number): Promise<File> {
+  const audioContext = new AudioContext();
+
+  try {
+    const sourceBuffer = await file.arrayBuffer();
+    const decoded = await audioContext.decodeAudioData(sourceBuffer.slice(0));
+    const frameLimit = Math.min(decoded.length, Math.max(1, Math.floor(targetDurationSeconds * decoded.sampleRate)));
+    const channels = Array.from({ length: decoded.numberOfChannels }, (_, index) =>
+      decoded.getChannelData(index).slice(0, frameLimit)
+    );
+    const mono = mixToMono(channels);
+    const resampled = resampleMono(mono, decoded.sampleRate, TRIMMED_SAMPLE_RATE);
+    const trimmedBlob = encodeWavFromMono(resampled, TRIMMED_SAMPLE_RATE);
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+
+    return new File([trimmedBlob], `${baseName}-trimmed.wav`, {
+      type: "audio/wav",
+      lastModified: Date.now()
+    });
+  } finally {
+    await audioContext.close();
+  }
+}
+
+function EyeIcon({ open }: { open: boolean }) {
+  return (
+    <svg aria-hidden="true" className="action-icon" viewBox="0 0 24 24">
+      <path
+        d={
+          open
+            ? "M1.5 12s3.8-6.5 10.5-6.5S22.5 12 22.5 12 18.7 18.5 12 18.5 1.5 12 1.5 12Z"
+            : "M3 4.5 20 19.5M6.1 7.2C7.8 5.9 9.8 5.2 12 5.2c6.7 0 10.5 6.8 10.5 6.8-.8 1.4-1.8 2.6-2.9 3.7M9 9.3a4 4 0 0 1 5.5 5.5M1.5 12c.8-1.3 1.8-2.5 3-3.6m2.2 8.2A11 11 0 0 0 12 18.5"
+        }
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+      {open ? <circle cx="12" cy="12" r="3.1" fill="none" stroke="currentColor" strokeWidth="1.8" /> : null}
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg aria-hidden="true" className="action-icon" viewBox="0 0 24 24">
+      <path
+        d="M8 7.5A2.5 2.5 0 0 1 10.5 5h6A2.5 2.5 0 0 1 19 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 8 16.5v-9ZM5 9.5V6.8A2.8 2.8 0 0 1 7.8 4H14"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      />
+    </svg>
+  );
+}
+
+function InfoIcon() {
+  return (
+    <svg aria-hidden="true" className="meta-info-icon" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12 10.2v5.1" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+      <circle cx="12" cy="7.3" r="1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const [mode, setMode] = useState<PasswordMode>("exact");
   const [file, setFile] = useState<File | null>(null);
@@ -148,6 +294,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "done">("idle");
   const [trimOnUpload, setTrimOnUpload] = useState(false);
+  const [isTrimmingAudio, setIsTrimmingAudio] = useState(false);
   const [limitModal, setLimitModal] = useState<LimitModalState>({
     durationSeconds: 0,
     file: null,
@@ -158,17 +305,27 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const copy = COPY[language];
 
   const modes: Array<{ value: PasswordMode; title: string; description: string }> = [
-    {
-      value: "exact",
-      title: copy.exactTitle,
-      description: copy.exactDescription
-    },
-    {
-      value: "robust",
-      title: copy.robustTitle,
-      description: copy.robustDescription
-    }
+    { value: "exact", title: copy.exactTitle, description: copy.exactDescription },
+    { value: "robust", title: copy.robustTitle, description: copy.robustDescription }
   ];
+  const algorithmDefinitions: Record<string, { label: string; description: string }> = {
+    "sha256(normalized_pcm16)": {
+      label: language === "ru" ? "PCM SHA-256" : "PCM SHA-256",
+      description:
+        language === "ru"
+          ? "Хеш нормализованного PCM-потока. Даёт максимально повторяемый результат для одного и того же аудиофайла."
+          : "Hashes the normalized PCM stream. Best when you want the exact same file to produce the same password."
+    },
+    "sha256(quantized_spectral_peaks)": {
+      label: language === "ru" ? "Spectral Peaks" : "Spectral Peaks",
+      description:
+        language === "ru"
+          ? "Хеш квантованных спектральных пиков. Лучше переносит похожие версии одной и той же записи."
+          : "Hashes quantized spectral peaks. Better for keeping similar recordings closer to each other."
+    }
+  };
+  const resultModeDefinition = modes.find((entry) => entry.value === result?.mode);
+  const resultAlgorithmDefinition = result ? algorithmDefinitions[result.algorithm] : null;
 
   useEffect(() => {
     if (!file) {
@@ -179,9 +336,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     const nextUrl = URL.createObjectURL(file);
     setAudioUrl(nextUrl);
 
-    return () => {
-      URL.revokeObjectURL(nextUrl);
-    };
+    return () => URL.revokeObjectURL(nextUrl);
   }, [file]);
 
   useEffect(() => {
@@ -213,9 +368,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
       setProgressLabel(activeStage.label);
     }, 240);
 
-    return () => {
-      window.clearInterval(timer);
-    };
+    return () => window.clearInterval(timer);
   }, [copy.progressAnalyzing, copy.progressEncoding, copy.progressWaiting, isSubmitting]);
 
   async function handleFileSelection(nextFile: File | null) {
@@ -228,6 +381,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     const tooLong = durationSeconds > MAX_DURATION_SECONDS;
 
     setError(null);
+    setResult(null);
 
     if (tooLarge || tooLong) {
       setLimitModal({
@@ -244,14 +398,29 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     setFile(nextFile);
   }
 
-  function acceptTrimmedUpload() {
+  async function acceptTrimmedUpload() {
     if (!limitModal.file) {
       return;
     }
 
-    setTrimOnUpload(true);
-    setFile(limitModal.file);
-    setLimitModal((state) => ({ ...state, isOpen: false }));
+    setIsTrimmingAudio(true);
+    setError(null);
+
+    try {
+      const targetDurationSeconds = Math.min(
+        MAX_DURATION_SECONDS,
+        Math.max(1, Math.floor(limitModal.durationSeconds || MAX_DURATION_SECONDS))
+      );
+      const trimmedFile = await trimAudioInBrowser(limitModal.file, targetDurationSeconds);
+      setTrimOnUpload(true);
+      setFile(trimmedFile);
+      setLimitModal((state) => ({ ...state, isOpen: false }));
+    } catch {
+      setTrimOnUpload(false);
+      setError(copy.trimFailed);
+    } finally {
+      setIsTrimmingAudio(false);
+    }
   }
 
   function rejectOversizedUpload() {
@@ -272,7 +441,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     setError(null);
 
     try {
-      const response = await generatePasswordFromAudio(file, mode, trimOnUpload);
+      const response = await generatePasswordFromAudio(file, mode, false);
       setProgress(100);
       setProgressLabel(copy.progressEncoding);
       setResult(response);
@@ -392,36 +561,64 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
             <div className="result-stack">
               <div className="result-highlight">
                 <p className="label">{copy.password}</p>
-                <code className="password-block">
-                  {isPasswordVisible ? result.password : "*".repeat(result.password.length)}
-                </code>
-                <div className="password-actions">
+                <div className="password-row">
+                  <code className="password-block">
+                    {isPasswordVisible ? result.password : "*".repeat(result.password.length)}
+                  </code>
                   <button
-                    className="secondary-button"
+                    className="icon-button"
                     type="button"
                     onClick={() => setIsPasswordVisible((value) => !value)}
+                    aria-label={isPasswordVisible ? copy.hide : copy.show}
+                    title={isPasswordVisible ? copy.hide : copy.show}
                   >
-                    {isPasswordVisible ? copy.hide : copy.show}
+                    <EyeIcon open={isPasswordVisible} />
                   </button>
-                  <button className="secondary-button" type="button" onClick={handleCopyPassword}>
-                    {copyState === "done" ? copy.copied : copy.copy}
+                  <button
+                    className={copyState === "done" ? "icon-button icon-button-done" : "icon-button"}
+                    type="button"
+                    onClick={handleCopyPassword}
+                    aria-label={copyState === "done" ? copy.copied : copy.copy}
+                    title={copyState === "done" ? copy.copied : copy.copy}
+                  >
+                    <CopyIcon />
                   </button>
                 </div>
               </div>
+
               <div className="result-meta">
-                <div className="meta-tile">
-                  <p className="label">{copy.mode}</p>
-                  <p>{result.mode}</p>
+                <div className="meta-tile meta-tile-pill">
+                  <div className="meta-tile-heading">
+                    <p className="label">{copy.mode}</p>
+                    <span className="meta-info-wrap" tabIndex={0}>
+                      <InfoIcon />
+                      <span className="meta-tooltip" role="tooltip">
+                        {resultModeDefinition?.description}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="result-pill result-pill-mode">
+                    <strong>{resultModeDefinition?.title ?? result.mode}</strong>
+                    <span className="result-pill-tag">{result.mode}</span>
+                  </div>
                 </div>
-                <div className="meta-tile">
-                  <p className="label">{copy.algorithm}</p>
-                  <p>{result.algorithm}</p>
-                </div>
-                <div className="meta-tile meta-tile-wide">
-                  <p className="label">{copy.fingerprintPreview}</p>
-                  <p>{result.fingerprint_preview}</p>
+                <div className="meta-tile meta-tile-pill">
+                  <div className="meta-tile-heading">
+                    <p className="label">{copy.algorithm}</p>
+                    <span className="meta-info-wrap" tabIndex={0}>
+                      <InfoIcon />
+                      <span className="meta-tooltip" role="tooltip">
+                        {resultAlgorithmDefinition?.description ?? result.algorithm}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="result-pill result-pill-algorithm">
+                    <strong>{resultAlgorithmDefinition?.label ?? result.algorithm}</strong>
+                    <span className="result-pill-tag">{result.algorithm}</span>
+                  </div>
                 </div>
               </div>
+
               <div className="fingerprint-animation" aria-hidden="true">
                 <span className="fingerprint-ring fingerprint-ring-outer" />
                 <span className="fingerprint-ring fingerprint-ring-middle" />
@@ -447,18 +644,23 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
             <h3 id="limit-modal-title">{limitModal.file?.name}</h3>
             <p className="limit-modal-text">{copy.limitMessage}</p>
             <p className="limit-modal-details">
-              {copy.limitDetails}: {audioLimits.maxUploadSizeMb} МБ / {formatDuration(MAX_DURATION_SECONDS)}
+              {copy.limitDetails}: {audioLimits.maxUploadSizeMb} MB / {formatDuration(MAX_DURATION_SECONDS)}
             </p>
             <p className="limit-modal-details">
               {language === "ru" ? "Файл" : "File"}:{" "}
-              {limitModal.file ? (limitModal.file.size / (1024 * 1024)).toFixed(1) : "0.0"} МБ /{" "}
+              {limitModal.file ? (limitModal.file.size / (1024 * 1024)).toFixed(1) : "0.0"} MB /{" "}
               {formatDuration(limitModal.durationSeconds)}
             </p>
             <div className="limit-modal-actions">
-              <button className="submit-button" type="button" onClick={acceptTrimmedUpload}>
-                {copy.trimAction}
+              <button
+                className="submit-button"
+                type="button"
+                onClick={acceptTrimmedUpload}
+                disabled={isTrimmingAudio}
+              >
+                {isTrimmingAudio ? copy.trimming : copy.trimAction}
               </button>
-              <button className="secondary-button" type="button" onClick={rejectOversizedUpload}>
+              <button className="secondary-button" type="button" onClick={rejectOversizedUpload} disabled={isTrimmingAudio}>
                 {copy.replaceAction}
               </button>
             </div>
