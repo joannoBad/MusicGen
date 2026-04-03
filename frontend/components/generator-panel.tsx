@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import audioLimits from "@/config/audio-limits.json";
 import { generatePasswordFromAudio, type GenerationResponse, type PasswordMode } from "@/lib/api";
 
@@ -119,11 +119,21 @@ async function getAudioDurationSeconds(file: File): Promise<number> {
   try {
     const audio = document.createElement("audio");
     audio.preload = "metadata";
+    audio.src = objectUrl;
 
     const duration = await new Promise<number>((resolve, reject) => {
-      audio.onloadedmetadata = () => resolve(audio.duration);
+      const timeout = window.setTimeout(() => {
+        audio.onloadedmetadata = null;
+        audio.onerror = null;
+        reject(new Error("Audio metadata timed out."));
+      }, 4000);
+
+      audio.onloadedmetadata = () => {
+        window.clearTimeout(timeout);
+        resolve(audio.duration);
+      };
       audio.onerror = () => reject(new Error("Audio metadata could not be read."));
-      audio.src = objectUrl;
+      audio.load();
     });
 
     return Number.isFinite(duration) ? duration : 0;
@@ -282,6 +292,36 @@ function InfoIcon() {
   );
 }
 
+function HoloGirlIcon() {
+  return (
+    <svg aria-hidden="true" className="tooltip-hologram-figure" viewBox="0 0 96 120">
+      <defs>
+        <linearGradient id="holoGirlGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#ffd8fb" />
+          <stop offset="55%" stopColor="#ff84ec" />
+          <stop offset="100%" stopColor="#ff4fd8" />
+        </linearGradient>
+      </defs>
+      <g fill="none" stroke="url(#holoGirlGlow)" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M27 42c4-15 14-24 21-24 8 0 18 9 22 24" strokeWidth="4.2" />
+        <path d="M31 43c-5 4-9 11-9 18 0 9 6 18 16 22" strokeWidth="3.4" />
+        <path d="M66 43c5 4 9 11 9 18 0 9-6 18-16 22" strokeWidth="3.4" />
+        <circle cx="48" cy="40" r="15" strokeWidth="3.6" />
+        <path d="M40 38c2-2 5-3 8-3 3 0 6 1 8 3" strokeWidth="2.6" />
+        <path d="M44 46c2 2 6 2 8 0" strokeWidth="2.2" />
+        <path d="M37 61c-10 5-18 18-18 31" strokeWidth="3.5" />
+        <path d="M59 61c10 5 18 18 18 31" strokeWidth="3.5" />
+        <path d="M48 62v21" strokeWidth="3.5" />
+        <path d="M29 91c7-5 13-8 19-8s12 3 19 8" strokeWidth="3.2" />
+        <path d="M33 26l-10-8" strokeWidth="2.6" />
+        <path d="M63 26l10-8" strokeWidth="2.6" />
+        <path d="M22 98h52" strokeWidth="2.4" opacity="0.82" />
+        <path d="M30 104h36" strokeWidth="2.1" opacity="0.64" />
+      </g>
+    </svg>
+  );
+}
+
 export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const [mode, setMode] = useState<PasswordMode>("exact");
   const [file, setFile] = useState<File | null>(null);
@@ -295,6 +335,8 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const [copyState, setCopyState] = useState<"idle" | "done">("idle");
   const [trimOnUpload, setTrimOnUpload] = useState(false);
   const [isTrimmingAudio, setIsTrimmingAudio] = useState(false);
+  const [visualizerBars, setVisualizerBars] = useState<number[]>(() => Array.from({ length: 28 }, () => 0.18));
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [limitModal, setLimitModal] = useState<LimitModalState>({
     durationSeconds: 0,
     file: null,
@@ -302,15 +344,21 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     tooLarge: false,
     tooLong: false
   });
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const copy = COPY[language];
 
   const modes: Array<{ value: PasswordMode; title: string; description: string }> = [
     { value: "exact", title: copy.exactTitle, description: copy.exactDescription },
     { value: "robust", title: copy.robustTitle, description: copy.robustDescription }
   ];
-  const algorithmDefinitions: Record<string, { label: string; description: string }> = {
+  const algorithmDefinitions: Record<string, { label: string; shortTag: string; description: string }> = {
     "sha256(normalized_pcm16)": {
       label: language === "ru" ? "PCM SHA-256" : "PCM SHA-256",
+      shortTag: "PCM16",
       description:
         language === "ru"
           ? "Хеш нормализованного PCM-потока. Даёт максимально повторяемый результат для одного и того же аудиофайла."
@@ -318,11 +366,12 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     },
     "sha256(quantized_spectral_peaks)": {
       label: language === "ru" ? "Spectral Peaks" : "Spectral Peaks",
+      shortTag: "PEAKS",
       description:
         language === "ru"
           ? "Хеш квантованных спектральных пиков. Лучше переносит похожие версии одной и той же записи."
           : "Hashes quantized spectral peaks. Better for keeping similar recordings closer to each other."
-    }
+    },
   };
   const resultModeDefinition = modes.find((entry) => entry.value === result?.mode);
   const resultAlgorithmDefinition = result ? algorithmDefinitions[result.algorithm] : null;
@@ -343,6 +392,21 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     setIsPasswordVisible(false);
     setCopyState("idle");
   }, [result]);
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      sourceNodeRef.current?.disconnect();
+      analyserRef.current?.disconnect();
+
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        void audioContextRef.current.close();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isSubmitting) {
@@ -370,6 +434,96 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
 
     return () => window.clearInterval(timer);
   }, [copy.progressAnalyzing, copy.progressEncoding, copy.progressWaiting, isSubmitting]);
+
+  useEffect(() => {
+    if (!audioUrl) {
+      setIsAudioPlaying(false);
+      setVisualizerBars(Array.from({ length: 28 }, () => 0.18));
+    }
+  }, [audioUrl]);
+
+  function animateVisualizer() {
+    const analyser = analyserRef.current;
+
+    if (!analyser) {
+      return;
+    }
+
+    const spectrum = new Uint8Array(analyser.frequencyBinCount);
+    analyser.getByteFrequencyData(spectrum);
+
+    const barCount = 28;
+    const bucketSize = Math.max(1, Math.floor(spectrum.length / barCount));
+    const nextBars = Array.from({ length: barCount }, (_, index) => {
+      let total = 0;
+      const start = index * bucketSize;
+      const end = Math.min(spectrum.length, start + bucketSize);
+
+      for (let bucket = start; bucket < end; bucket += 1) {
+        total += spectrum[bucket] ?? 0;
+      }
+
+      const average = total / Math.max(1, end - start);
+      return Math.max(0.14, average / 255);
+    });
+
+    setVisualizerBars(nextBars);
+    animationFrameRef.current = window.requestAnimationFrame(animateVisualizer);
+  }
+
+  async function connectAudioVisualizer() {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement) {
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContext();
+    }
+
+    if (!analyserRef.current) {
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      analyserRef.current.fftSize = 256;
+      analyserRef.current.smoothingTimeConstant = 0.82;
+    }
+
+    if (!sourceNodeRef.current) {
+      sourceNodeRef.current = audioContextRef.current.createMediaElementSource(audioElement);
+      sourceNodeRef.current.connect(analyserRef.current);
+      analyserRef.current.connect(audioContextRef.current.destination);
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+  }
+
+  async function handleAudioPlay() {
+    try {
+      await connectAudioVisualizer();
+      setIsAudioPlaying(true);
+
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+
+      animationFrameRef.current = window.requestAnimationFrame(animateVisualizer);
+    } catch {
+      setIsAudioPlaying(true);
+    }
+  }
+
+  function stopVisualizer() {
+    setIsAudioPlaying(false);
+
+    if (animationFrameRef.current !== null) {
+      window.cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    setVisualizerBars(Array.from({ length: 28 }, () => 0.18));
+  }
 
   async function handleFileSelection(nextFile: File | null) {
     if (!nextFile) {
@@ -497,7 +651,13 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
                     <span className="mode-chip">{entry.value}</span>
                   </div>
                   <span className="mode-tooltip" role="tooltip">
-                    {entry.description}
+                    <span className="tooltip-shell">
+                      <span className="tooltip-hologram" aria-hidden="true">
+                        <span className="tooltip-hologram-aura" />
+                        <HoloGirlIcon />
+                      </span>
+                      <span className="tooltip-copy">{entry.description}</span>
+                    </span>
                   </span>
                 </button>
               ))}
@@ -528,7 +688,15 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
           {audioUrl ? (
             <div className="audio-preview">
               <p className="label">{copy.previewAudio}</p>
-              <audio controls className="audio-player" src={audioUrl} />
+              <audio
+                ref={audioElementRef}
+                controls
+                className="audio-player"
+                src={audioUrl}
+                onPlay={() => void handleAudioPlay()}
+                onPause={stopVisualizer}
+                onEnded={stopVisualizer}
+              />
             </div>
           ) : null}
 
@@ -590,10 +758,16 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
                 <div className="meta-tile meta-tile-pill">
                   <div className="meta-tile-heading">
                     <p className="label">{copy.mode}</p>
-                    <span className="meta-info-wrap" tabIndex={0}>
+                    <span className="meta-info-wrap meta-info-wrap-left" tabIndex={0}>
                       <InfoIcon />
                       <span className="meta-tooltip" role="tooltip">
-                        {resultModeDefinition?.description}
+                        <span className="tooltip-shell">
+                          <span className="tooltip-hologram" aria-hidden="true">
+                            <span className="tooltip-hologram-aura" />
+                            <HoloGirlIcon />
+                          </span>
+                          <span className="tooltip-copy">{resultModeDefinition?.description}</span>
+                        </span>
                       </span>
                     </span>
                   </div>
@@ -605,25 +779,45 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
                 <div className="meta-tile meta-tile-pill">
                   <div className="meta-tile-heading">
                     <p className="label">{copy.algorithm}</p>
-                    <span className="meta-info-wrap" tabIndex={0}>
+                    <span className="meta-info-wrap meta-info-wrap-right" tabIndex={0}>
                       <InfoIcon />
                       <span className="meta-tooltip" role="tooltip">
-                        {resultAlgorithmDefinition?.description ?? result.algorithm}
+                        <span className="tooltip-shell">
+                          <span className="tooltip-hologram" aria-hidden="true">
+                            <span className="tooltip-hologram-aura" />
+                            <HoloGirlIcon />
+                          </span>
+                          <span className="tooltip-copy">
+                            {resultAlgorithmDefinition?.description ?? result.algorithm}
+                          </span>
+                        </span>
                       </span>
                     </span>
                   </div>
                   <div className="result-pill result-pill-algorithm">
                     <strong>{resultAlgorithmDefinition?.label ?? result.algorithm}</strong>
-                    <span className="result-pill-tag">{result.algorithm}</span>
+                    <span className="result-pill-tag">
+                      {resultAlgorithmDefinition?.shortTag ?? result.algorithm}
+                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="fingerprint-animation" aria-hidden="true">
-                <span className="fingerprint-ring fingerprint-ring-outer" />
-                <span className="fingerprint-ring fingerprint-ring-middle" />
-                <span className="fingerprint-ring fingerprint-ring-inner" />
-                <span className="fingerprint-core" />
+                <div className={isAudioPlaying ? "music-visualizer music-visualizer-active" : "music-visualizer"}>
+                  {visualizerBars.map((value, index) => (
+                    <span
+                      key={`${index}-${value.toFixed(3)}`}
+                      className="visualizer-bar"
+                      style={
+                        {
+                          "--bar-scale": `${Math.max(0.18, value)}`,
+                          "--bar-delay": `${index * 30}ms`
+                        } as React.CSSProperties
+                      }
+                    />
+                  ))}
+                </div>
               </div>
             </div>
           ) : (

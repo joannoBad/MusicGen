@@ -433,7 +433,7 @@ input {
   right: 18px;
   top: calc(100% + 12px);
   z-index: 5;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid rgba(255, 79, 216, 0.46);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(22, 8, 28, 0.98), rgba(46, 10, 60, 0.98));
@@ -619,7 +619,7 @@ input {
 }
 
 .meta-tile {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid rgba(76, 242, 255, 0.12);
   border-radius: 18px;
   background: rgba(8, 16, 30, 0.74);
@@ -664,7 +664,7 @@ input {
   top: calc(100% + 12px);
   z-index: 5;
   width: min(260px, calc(100vw - 72px));
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid rgba(255, 79, 216, 0.46);
   border-radius: 16px;
   background: linear-gradient(135deg, rgba(22, 8, 28, 0.98), rgba(46, 10, 60, 0.98));
@@ -683,6 +683,11 @@ input {
   transition: opacity 150ms ease, transform 150ms ease;
 }
 
+.meta-info-wrap-right .meta-tooltip {
+  left: auto;
+  right: 0;
+}
+
 .meta-tooltip::before {
   content: "";
   position: absolute;
@@ -696,26 +701,75 @@ input {
   transform: rotate(45deg);
 }
 
+.meta-info-wrap-right .meta-tooltip::before {
+  left: auto;
+  right: 10px;
+}
+
 .meta-info-wrap:hover .meta-tooltip,
 .meta-info-wrap:focus-visible .meta-tooltip {
   opacity: 1;
   transform: translateY(0);
 }
 
+.tooltip-shell {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.tooltip-copy {
+  display: block;
+}
+
+.tooltip-hologram {
+  position: relative;
+  width: 74px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  animation: tooltipHoloFloat 1.9s ease-in-out infinite;
+}
+
+.tooltip-hologram-aura {
+  position: absolute;
+  inset: 8px;
+  border-radius: 999px 999px 26px 26px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255, 216, 251, 0.42), transparent 34%),
+    radial-gradient(circle at 50% 78%, rgba(255, 79, 216, 0.22), transparent 46%);
+  box-shadow:
+    0 0 22px rgba(255, 79, 216, 0.34),
+    inset 0 0 18px rgba(255, 160, 240, 0.18);
+  filter: blur(1px);
+  animation: tooltipAuraPulse 1.9s ease-in-out infinite;
+}
+
+.tooltip-hologram-figure {
+  position: relative;
+  z-index: 1;
+  width: 62px;
+  height: 78px;
+  filter:
+    drop-shadow(0 0 8px rgba(255, 122, 234, 0.55))
+    drop-shadow(0 0 18px rgba(255, 79, 216, 0.34));
+}
+
 .result-pill {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 82px;
-  padding: 16px 18px;
+  gap: 10px;
+  min-height: 68px;
+  padding: 12px 14px;
   border-radius: 999px;
   overflow: hidden;
 }
 
 .result-pill strong {
-  font-size: 1.02rem;
-  line-height: 1.35;
+  font-size: 0.92rem;
+  line-height: 1.3;
 }
 
 .result-pill-mode {
@@ -732,13 +786,13 @@ input {
 
 .result-pill-tag {
   flex: 0 0 auto;
-  max-width: 52%;
-  padding: 6px 10px;
+  max-width: 44%;
+  padding: 5px 8px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 999px;
   color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.35;
+  font-size: 0.66rem;
+  line-height: 1.2;
   text-align: right;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -790,48 +844,52 @@ input {
 
 .fingerprint-animation {
   position: relative;
-  width: 120px;
-  height: 120px;
-  margin: 6px auto 0;
+  width: 100%;
+  margin: 4px auto 0;
 }
 
-.fingerprint-ring,
-.fingerprint-core {
-  position: absolute;
-  inset: 50%;
-  border-radius: 999px;
-  transform: translate(-50%, -50%);
+.music-visualizer {
+  display: grid;
+  grid-template-columns: repeat(28, minmax(0, 1fr));
+  align-items: end;
+  gap: 6px;
+  min-height: 122px;
+  padding: 18px 16px 14px;
+  border: 1px solid rgba(255, 79, 216, 0.2);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 79, 216, 0.06), transparent 35%),
+    linear-gradient(135deg, rgba(16, 10, 28, 0.96), rgba(8, 14, 30, 0.96));
+  box-shadow:
+    inset 0 0 18px rgba(255, 79, 216, 0.08),
+    0 0 24px rgba(255, 79, 216, 0.08);
 }
 
-.fingerprint-ring {
-  border: 1px solid rgba(255, 79, 216, 0.42);
-  box-shadow: 0 0 18px rgba(255, 79, 216, 0.18);
-  animation: pulseRing 2.4s ease-in-out infinite;
+.music-visualizer-active {
+  box-shadow:
+    inset 0 0 24px rgba(255, 79, 216, 0.12),
+    0 0 32px rgba(255, 79, 216, 0.12),
+    0 0 60px rgba(76, 242, 255, 0.08);
 }
 
-.fingerprint-ring-outer {
-  width: 112px;
-  height: 112px;
+.visualizer-bar {
+  display: block;
+  height: 88px;
+  border-radius: 999px 999px 8px 8px;
+  transform-origin: center bottom;
+  transform: scaleY(var(--bar-scale));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 141, 237, 0.9) 16%, rgba(255, 79, 216, 0.82) 52%, rgba(76, 242, 255, 0.78) 100%);
+  box-shadow:
+    0 0 12px rgba(255, 79, 216, 0.2),
+    0 0 22px rgba(76, 242, 255, 0.14);
+  transition: transform 100ms linear, opacity 140ms ease;
+  animation: visualizerIdle 2.6s ease-in-out infinite;
+  animation-delay: var(--bar-delay);
 }
 
-.fingerprint-ring-middle {
-  width: 78px;
-  height: 78px;
-  animation-delay: 0.28s;
-}
-
-.fingerprint-ring-inner {
-  width: 46px;
-  height: 46px;
-  animation-delay: 0.56s;
-}
-
-.fingerprint-core {
-  width: 12px;
-  height: 12px;
-  background: radial-gradient(circle, #fff 0%, #ff7be6 55%, #ff4fd8 100%);
-  box-shadow: 0 0 22px rgba(255, 79, 216, 0.42);
-  animation: pulseCore 1.8s ease-in-out infinite;
+.music-visualizer-active .visualizer-bar {
+  animation: none;
 }
 
 .error-message {
@@ -947,16 +1005,40 @@ input {
   }
 }
 
-@keyframes pulseCore {
+@keyframes tooltipHoloFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(0.98);
+  }
+
+  50% {
+    transform: translateY(-4px) scale(1);
+  }
+}
+
+@keyframes visualizerIdle {
+  0%,
+  100% {
+    transform: scaleY(0.18);
+    opacity: 0.7;
+  }
+
+  50% {
+    transform: scaleY(0.32);
+    opacity: 1;
+  }
+}
+
+@keyframes tooltipAuraPulse {
   0%,
   100% {
     opacity: 0.72;
-    transform: translate(-50%, -50%) scale(0.92);
+    transform: scale(0.96);
   }
 
   50% {
     opacity: 1;
-    transform: translate(-50%, -50%) scale(1.18);
+    transform: scale(1.03);
   }
 }
 
@@ -978,6 +1060,26 @@ input {
 }
 
 @media (max-width: 640px) {
+  .tooltip-shell {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
+  .music-visualizer {
+    gap: 4px;
+    min-height: 108px;
+    padding-inline: 12px;
+  }
+
+  .visualizer-bar {
+    height: 78px;
+  }
+
+  .tooltip-hologram {
+    width: 64px;
+    height: 74px;
+  }
+
   .result-meta {
     grid-template-columns: 1fr;
   }

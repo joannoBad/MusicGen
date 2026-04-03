@@ -18,9 +18,39 @@
 ```text
 frontend/        UI на Next.js
 backend/         FastAPI API и логика аудио-отпечатков
+desktop/         Автономный desktop-вариант на Electron без интернета
 scripts/         Скрипты запуска для разработки и production-like режима
 deploy/          Дополнительные конфиги для Linux-развёртывания
 deploy/systemd/  Шаблоны systemd unit-файлов
+```
+
+## Desktop-версия
+
+В репозитории есть отдельная папка `desktop/` с автономной Electron-версией.
+
+Она:
+
+- не использует `frontend/` и `backend/` во время работы
+- не требует локального сервера
+- не требует интернета
+- может собираться в portable-формат для Windows
+
+Запуск:
+
+```powershell
+cd desktop
+npm install
+Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+npm start
+```
+
+Сборка portable:
+
+```powershell
+cd desktop
+npm install
+Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
+npm run build:portable
 ```
 
 ## Текущее состояние MVP
@@ -174,9 +204,3 @@ uvicorn app.main:app --reload --port 8000
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 ```
 
-## Идеи для развития
-
-- добавить поддержку большего числа аудиоформатов
-- сравнивать несколько версий одной и той же записи в `Robust`-режиме
-- добавить визуализацию отпечатка
-- позже завернуть приложение в `Tauri`

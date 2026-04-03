@@ -1,0 +1,146 @@
+﻿<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MusicGen Desktop</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-brand">
+          <div class="musicgen-logo" aria-hidden="true">
+            <div class="musicgen-logo-ring" id="logo-ring"></div>
+            <div class="musicgen-logo-core"></div>
+          </div>
+          <div class="hero-copy">
+            <h1>MusicGen Desktop</h1>
+            <p class="eyebrow">Полностью автономный режим без интернета</p>
+          </div>
+        </div>
+        <p class="lede">Десктопная версия считает пароль полностью локально. Аудио не отправляется на сервер и не требует подключения к интернету.</p>
+      </section>
+
+      <section class="panel-grid">
+        <form class="card upload-card" id="generator-form">
+          <div class="card-header">
+            <p class="section-kicker">Ввод</p>
+            <h2>Загрузка аудио</h2>
+          </div>
+
+          <div class="mode-section">
+            <div class="subsection-heading">
+              <p class="section-kicker">Режим отпечатка</p>
+            </div>
+
+            <div class="mode-segmented" role="radiogroup" aria-label="Fingerprint mode">
+              <button class="mode-segment mode-segment-active" data-mode="exact" type="button">
+                <div class="mode-segment-topline">
+                  <strong>Точный</strong>
+                  <span class="mode-chip">EXACT</span>
+                </div>
+                <span class="mode-tooltip">Нормализует PCM-поток и дает максимально повторяемый результат для одного и того же файла.</span>
+              </button>
+              <button class="mode-segment" data-mode="robust" type="button">
+                <div class="mode-segment-topline">
+                  <strong>Устойчивый</strong>
+                  <span class="mode-chip">ROBUST</span>
+                </div>
+                <span class="mode-tooltip">Строит более грубый спектральный отпечаток, чтобы похожие версии записи оставались ближе.</span>
+              </button>
+            </div>
+          </div>
+
+          <label class="file-dropzone">
+            <span>Перетащите WAV или MP3 сюда или выберите файл вручную.</span>
+            <small>Файл обрабатывается полностью локально на этом устройстве.</small>
+            <span class="file-picker-row">
+              <span class="file-picker-button">Выбрать аудио</span>
+              <span class="file-picker-name" id="file-name">Файл не выбран</span>
+            </span>
+            <input id="audio-input" accept=".wav,.mp3,audio/wav,audio/mpeg" type="file" />
+          </label>
+
+          <div class="audio-preview hidden" id="audio-preview-block">
+            <p class="label">Прослушать аудио</p>
+            <audio controls class="audio-player" id="audio-preview"></audio>
+          </div>
+
+          <button class="submit-button" id="generate-button" disabled type="submit">Сгенерировать пароль</button>
+
+          <div class="progress-panel hidden" id="progress-panel" aria-live="polite">
+            <div class="progress-copy">
+              <p class="label">Ход генерации</p>
+              <p id="progress-label">Подготовка</p>
+            </div>
+            <div class="progress-track">
+              <span class="progress-fill" id="progress-fill" style="width: 0%"></span>
+            </div>
+          </div>
+
+          <p class="microcopy">Desktop-режим: аудио и пароль остаются только на этом устройстве.</p>
+        </form>
+
+        <aside class="card result-card">
+          <div class="card-header">
+            <p class="section-kicker">Результат</p>
+            <h2>Сгенерированный пароль</h2>
+          </div>
+
+          <div class="empty-shell" id="empty-state">
+            <div class="empty-orb" aria-hidden="true"></div>
+            <p class="empty-state">Сгенерированный пароль появится здесь после анализа.</p>
+          </div>
+
+          <div class="result-stack hidden" id="result-stack">
+            <div class="result-highlight">
+              <p class="label">Пароль</p>
+              <div class="password-row">
+                <code class="password-block" id="password-block">******************</code>
+                <button class="icon-button" id="toggle-password" type="button" aria-label="Показать пароль" title="Показать пароль">
+                  <span class="icon-eye"></span>
+                </button>
+                <button class="icon-button" id="copy-password" type="button" aria-label="Скопировать пароль" title="Скопировать пароль">
+                  <span class="icon-copy"></span>
+                </button>
+              </div>
+            </div>
+
+            <div class="result-meta">
+              <div class="meta-tile meta-tile-pill">
+                <div class="meta-tile-heading">
+                  <p class="label">Режим</p>
+                </div>
+                <div class="result-pill result-pill-mode">
+                  <strong id="result-mode-label">Точный</strong>
+                  <span class="result-pill-tag" id="result-mode-tag">exact</span>
+                </div>
+              </div>
+              <div class="meta-tile meta-tile-pill">
+                <div class="meta-tile-heading">
+                  <p class="label">Алгоритм</p>
+                </div>
+                <div class="result-pill result-pill-algorithm">
+                  <strong id="result-algorithm-label">PCM SHA-256</strong>
+                  <span class="result-pill-tag" id="result-algorithm-tag">PCM16</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="fingerprint-animation" aria-hidden="true">
+              <span class="fingerprint-ring fingerprint-ring-outer"></span>
+              <span class="fingerprint-ring fingerprint-ring-middle"></span>
+              <span class="fingerprint-ring fingerprint-ring-inner"></span>
+              <span class="fingerprint-core"></span>
+            </div>
+          </div>
+
+          <p class="error-message hidden" id="error-message"></p>
+        </aside>
+      </section>
+    </main>
+
+    <script src="./renderer.js"></script>
+  </body>
+</html>

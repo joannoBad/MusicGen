@@ -13,3 +13,6 @@ __pycache__/
 frontend/.env.local
 backend/.env
 logs/
+desktop/node_modules/
+desktop/dist/
+desktop/out/

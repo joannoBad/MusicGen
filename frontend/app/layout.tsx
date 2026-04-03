@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MusicGen Password Lab",
+  title: "MusicGen",
   description: "Generate deterministic passwords from audio fingerprints."
 };
 
@@ -17,3 +17,4 @@ export default function RootLayout({ children }: RootLayoutProps) {
     </html>
   );
 }
+

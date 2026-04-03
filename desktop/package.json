@@ -1,0 +1,44 @@
+{
+  "name": "musicgen-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "author": "joannoBad",
+  "description": "Offline portable desktop build for MusicGen",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build:portable": "electron-builder --win portable"
+  },
+  "devDependencies": {
+    "electron": "36.2.1",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.joannobad.musicgen.desktop",
+    "productName": "MusicGen Desktop",
+    "artifactName": "MusicGen-Portable-${version}.${ext}",
+    "icon": "build/icon.ico",
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "index.html",
+      "renderer.js",
+      "styles.css"
+    ],
+    "directories": {
+      "buildResources": "build"
+    },
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  }
+}
