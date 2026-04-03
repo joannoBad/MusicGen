@@ -1,44 +1,130 @@
 # MusicGen Technical Guide
 
-## О проекте
+## Overview
 
-MusicGen генерирует пароль из акустического отпечатка аудиозаписи.
+MusicGen generates deterministic passwords from the acoustic fingerprint of an audio recording.
 
-В проекте есть два режима генерации:
+The project currently supports two fingerprint modes:
 
-- `Exact`: детерминированная генерация пароля для одного и того же нормализованного аудио.
-- `Robust`: более устойчивый спектральный отпечаток, который старается сохранять близость для похожих версий одной записи.
+- `Exact` - hashes normalized PCM data for strict repeatability
+- `Robust` - hashes coarse spectral peaks so similar recordings stay closer together
 
-## Стек
+## Stack
 
 - Frontend: `Next.js 15`, `React 19`, `TypeScript`
 - Backend: `FastAPI`, `Python`
 - Desktop: `Electron`
-- DSP-подход: детерминированная нормализация, извлечение спектральных признаков, маппинг в пароль
+- Audio pipeline: deterministic normalization, spectral feature extraction, deterministic password mapping
 
-## Структура репозитория
+## Repository layout
 
 ```text
-frontend/        UI на Next.js
-backend/         FastAPI API и логика аудио-отпечатков
-desktop/         Автономный desktop-вариант на Electron без интернета
-scripts/         Скрипты запуска для разработки и production-like режима
-deploy/          Дополнительные конфиги для Linux-развёртывания
-deploy/systemd/  Шаблоны systemd unit-файлов
+frontend/        Next.js user interface
+backend/         FastAPI API and audio fingerprint logic
+desktop/         Standalone Electron build that works offline
+scripts/         Windows and Linux helper scripts for startup and shutdown
+deploy/          Extra deployment config for Linux environments
+deploy/systemd/  Example systemd units
+docs/screenshots README assets
 ```
 
-## Desktop-версия
+## Current behavior
 
-В папке `desktop/` лежит отдельная автономная Electron-версия.
+- The backend accepts `WAV` and `MP3`.
+- `MP3` decoding depends on `ffmpeg`.
+- Password generation stays deterministic as long as the normalized input stays the same.
+- The web client trims oversized audio in the browser before upload.
+- The desktop app runs fully offline and does not depend on `frontend/` or `backend/` at runtime.
 
-Она:
+## Quick start
 
-- не использует `frontend/` и `backend/` во время работы
-- не требует локального сервера
-- не требует интернета
-- может собираться в portable-формат для Windows
+### Windows, production-like mode
 
-Запуск:
+Start:
+
+```bat
+start_prod.cmd
+```
+
+Stop:
+
+```bat
+stop_prod.cmd
+```
+
+### Linux, production-like mode
+
+Make the scripts executable once:
+
+```bash
+chmod +x start_prod.sh stop_prod.sh scripts/*.sh
+```
+
+Start:
+
+```bash
+./start_prod.sh
+```
+
+Stop:
+
+```bash
+./stop_prod.sh
+```
+
+After startup the default endpoints are:
+
+- frontend: `http://127.0.0.1:3000`
+- backend health: `http://127.0.0.1:8000/api/health`
+
+### Windows, development mode
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_all.ps1
+```
+
+## Manual development setup
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### Backend on Windows
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+### Backend on Linux or macOS
+
+```bash
+cd backend
+python3 -m venv .venv
+. .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+## Desktop build
+
+The standalone Electron version lives in `desktop/`.
+
+It:
+
+- does not use `frontend/` or `backend/` during runtime
+- does not require a local server
+- does not require internet access
+- can be built as a Windows portable executable
+
+Run it locally:
 
 ```powershell
 cd desktop
@@ -47,7 +133,7 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 npm start
 ```
 
-Сборка portable:
+Build the portable package:
 
 ```powershell
 cd desktop
@@ -56,82 +142,28 @@ Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue
 npm run build:portable
 ```
 
-Готовый portable-файл после сборки:
+Default artifact path:
 
 ```text
-desktop/dist/MusicGen-Portable-0.1.0.exe
+desktop/dist/MusicGen-Portable-0.1.1.exe
 ```
 
-## Текущее состояние
+## Linux deployment
 
-- Backend поддерживает `WAV` и `MP3`.
-- Для декодирования `MP3` используется `ffmpeg`.
-- Генерация пароля остаётся детерминированной, если на вход попадает одно и то же нормализованное аудио.
-- Frontend умеет работать за reverse proxy и по умолчанию может использовать `/api/*` на том же хосте.
+Recommended stack:
 
-## Быстрый запуск
-
-### Windows, production-like режим
-
-Запуск:
-
-```bat
-start_prod.cmd
-```
-
-Остановка:
-
-```bat
-stop_prod.cmd
-```
-
-### Linux, production-like режим
-
-Один раз сделайте скрипты исполняемыми:
-
-```bash
-chmod +x start_prod.sh stop_prod.sh scripts/*.sh
-```
-
-Запуск:
-
-```bash
-./start_prod.sh
-```
-
-Остановка:
-
-```bash
-./stop_prod.sh
-```
-
-После старта доступны:
-
-- frontend: `http://127.0.0.1:3000`
-- backend health: `http://127.0.0.1:8000/api/health`
-
-### Windows, режим разработки
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\start_all.ps1
-```
-
-## Настройка Linux-сервера
-
-Рекомендуемый стек:
-
-- управление процессами: `systemd`
+- process management: `systemd`
 - reverse proxy: `Caddy`
-- декодирование аудио: `ffmpeg`
+- audio decoding: `ffmpeg`
 
-Пример установки зависимостей:
+Example dependency install:
 
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip ffmpeg nodejs npm caddy
 ```
 
-Установка зависимостей проекта:
+Install project dependencies:
 
 ```bash
 cd /opt/musicgen/frontend
@@ -146,8 +178,9 @@ pip install -r requirements.txt
 
 ### systemd
 
-В `deploy/systemd/` лежат шаблоны unit-файлов.
-Перед использованием проверьте пути и пользователя, затем установите их так:
+Templates live in `deploy/systemd/`.
+
+Copy them after checking paths and user names:
 
 ```bash
 sudo cp deploy/systemd/musicgen-backend.service /etc/systemd/system/
@@ -158,56 +191,47 @@ sudo systemctl enable --now musicgen-backend musicgen-frontend
 
 ### Caddy
 
-Стартовый конфиг лежит в `deploy/Caddyfile`.
-Замените `example.com` на свой домен или hostname и установите конфиг:
+The starter config is stored in `deploy/Caddyfile`.
+
+Replace `example.com` with your real domain or hostname, then install it:
 
 ```bash
 sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-В такой схеме:
+With this setup:
 
-- frontend открывается на `/`
-- backend проксируется на `/api/*`
-- в браузере используется один домен вместо двух отдельных портов
+- frontend is served on `/`
+- backend is proxied on `/api/*`
+- the browser talks to a single host instead of two separate ports
 
-## Ручной запуск для разработки
+## Tests
 
-### Frontend
+Backend tests currently cover:
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- deterministic output for identical audio
+- password differences between `Exact` and `Robust`
+- behavior when gain, noise, shift, or trailing silence changes the source
+- trimming behavior for oversized input
+- empty file handling
+- silent audio handling
+- direct HTTP integration through `/api/generate-password`
 
-### Backend на Linux/macOS
-
-```bash
-cd backend
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-### Backend на Windows
+Run them on Windows:
 
 ```powershell
 cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-## Переменные окружения
+## Environment variables
 
-Для локальной split-схемы frontend/backend скопируйте `frontend/.env.local.example` в `frontend/.env.local`.
-Если приложение работает за `Caddy` на одном хосте, frontend может использовать относительный `/api` без абсолютного URL.
+For a split local frontend/backend setup, copy `frontend/.env.local.example` to `frontend/.env.local`.
 
-Пример для локальной разработки:
+If the app is served behind `Caddy` on a single host, the frontend can use relative `/api` requests without an absolute base URL.
+
+Example for local development:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000

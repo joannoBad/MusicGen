@@ -41,6 +41,7 @@ const COPY = {
     generating: "Synthesizing password...",
     localOnly: "Audio is sent only to the server used by this app instance.",
     chooseFileError: "Choose an audio file before generating a password.",
+    emptyFileError: "The uploaded file is empty.",
     genericError: "The generator failed before it could produce a password.",
     trimFailed: "The browser could not prepare a trimmed version of this audio.",
     password: "Password",
@@ -87,6 +88,7 @@ const COPY = {
     generating: "Генерация пароля...",
     localOnly: "Аудио отправляется только на сервер этого приложения.",
     chooseFileError: "Сначала выберите аудиофайл.",
+    emptyFileError: "Загруженный файл пуст.",
     genericError: "Генератор не смог создать пароль.",
     trimFailed: "Браузер не смог подготовить обрезанную версию этого аудио.",
     password: "Пароль",
@@ -114,6 +116,7 @@ const COPY = {
 } as const;
 
 async function getAudioDurationSeconds(file: File): Promise<number> {
+  // Metadata probing is cheaper than decoding the whole file just to read its duration.
   const objectUrl = URL.createObjectURL(file);
 
   try {
@@ -150,6 +153,7 @@ function formatDuration(seconds: number): string {
 }
 
 function mixToMono(channels: Float32Array[]): Float32Array {
+  // The browser-side trim path mirrors the backend by working on mono audio.
   if (channels.length === 1) {
     return channels[0];
   }
@@ -188,6 +192,7 @@ function resampleMono(samples: Float32Array, sourceRate: number, targetRate: num
 }
 
 function encodeWavFromMono(samples: Float32Array, sampleRate: number): Blob {
+  // Re-encode trimmed audio as WAV so the server receives a predictable format.
   const bytesPerSample = 2;
   const blockAlign = bytesPerSample;
   const buffer = new ArrayBuffer(44 + samples.length * bytesPerSample);
@@ -224,6 +229,7 @@ function encodeWavFromMono(samples: Float32Array, sampleRate: number): Blob {
 }
 
 async function trimAudioInBrowser(file: File, targetDurationSeconds: number): Promise<File> {
+  // Oversized uploads are trimmed on the client so we do not send avoidable bytes to the server.
   const audioContext = new AudioContext();
 
   try {
@@ -377,6 +383,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   const resultAlgorithmDefinition = result ? algorithmDefinitions[result.algorithm] : null;
 
   useEffect(() => {
+    // Keep the audio element synced with the currently selected file.
     if (!file) {
       setAudioUrl(null);
       return;
@@ -389,11 +396,13 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   }, [file]);
 
   useEffect(() => {
+    // Reset temporary password UI state every time a new result arrives.
     setIsPasswordVisible(false);
     setCopyState("idle");
   }, [result]);
 
   useEffect(() => {
+    // Release audio and animation resources when the panel unmounts.
     return () => {
       if (animationFrameRef.current !== null) {
         window.cancelAnimationFrame(animationFrameRef.current);
@@ -409,6 +418,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
   }, []);
 
   useEffect(() => {
+    // The fake progress bar keeps the server round-trip from feeling abrupt.
     if (!isSubmitting) {
       setProgress(0);
       setProgressLabel("");
@@ -452,6 +462,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     const spectrum = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(spectrum);
 
+    // Collapse FFT data into a small set of bars that feels like an old media player.
     const barCount = 28;
     const bucketSize = Math.max(1, Math.floor(spectrum.length / barCount));
     const nextBars = Array.from({ length: barCount }, (_, index) => {
@@ -478,6 +489,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
       return;
     }
 
+    // Reuse one graph so repeated play/pause cycles stay cheap.
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
     }
@@ -530,6 +542,14 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
       return;
     }
 
+    if (nextFile.size === 0) {
+      setTrimOnUpload(false);
+      setFile(null);
+      setResult(null);
+      setError(copy.emptyFileError);
+      return;
+    }
+
     const durationSeconds = await getAudioDurationSeconds(nextFile).catch(() => 0);
     const tooLarge = nextFile.size > MAX_UPLOAD_SIZE_BYTES;
     const tooLong = durationSeconds > MAX_DURATION_SECONDS;
@@ -537,6 +557,7 @@ export function GeneratorPanel({ language }: { language: UiLanguage }) {
     setError(null);
     setResult(null);
 
+    // Let the user choose whether to trim locally instead of failing silently.
     if (tooLarge || tooLong) {
       setLimitModal({
         durationSeconds,

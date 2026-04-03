@@ -22,6 +22,7 @@ const COPY = {
 } as const;
 
 function MusicGenLogo() {
+  // The logo is generated from simple bars so the desktop build can mirror it exactly.
   const bars = Array.from({ length: 64 }, (_, index) => {
     const angle = index * 5.625;
     const height = 10 + ((index * 7) % 18);

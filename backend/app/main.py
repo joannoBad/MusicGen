@@ -5,7 +5,8 @@ from app.audio import UnsupportedAudioError, fingerprint_audio, password_from_di
 from app.limits import load_audio_limits
 from app.schemas import PasswordMode, PasswordResponse
 
-app = FastAPI(title="MusicGen Password Lab API", version="0.1.0")
+# Keep the API version aligned with the current git tag.
+app = FastAPI(title="MusicGen Password Lab API", version="0.1.1")
 AUDIO_LIMITS = load_audio_limits()
 
 app.add_middleware(
@@ -19,6 +20,8 @@ app.add_middleware(
 
 @app.get("/api/health")
 def healthcheck() -> dict[str, str]:
+    """Small probe used by local launch scripts and deployment checks."""
+
     return {"status": "ok"}
 
 
@@ -28,6 +31,8 @@ async def generate_password(
     mode: PasswordMode = Form(...),
     trim_if_needed: bool = Form(False),
 ) -> PasswordResponse:
+    """Generate a deterministic password from uploaded audio."""
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="The uploaded file must have a name.")
 
@@ -49,6 +54,7 @@ async def generate_password(
     except UnsupportedAudioError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    # The web client treats this response as the source of truth for password output.
     return PasswordResponse(
         algorithm=fingerprint.algorithm,
         fingerprint_preview=fingerprint.preview,

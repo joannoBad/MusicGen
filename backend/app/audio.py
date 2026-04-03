@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+"""Deterministic audio normalization and password fingerprint helpers."""
+
 import hashlib
 import io
 import math
@@ -24,12 +26,16 @@ class UnsupportedAudioError(ValueError):
 
 @dataclass(frozen=True)
 class AudioFingerprint:
+    """Compact fingerprint payload used to build the final password response."""
+
     algorithm: str
     digest: str
     preview: str
 
 
 def configure_ffmpeg() -> None:
+    """Wire pydub to a WinGet-installed ffmpeg build when it is available."""
+
     ffmpeg_candidates = sorted(FFMPEG_ROOT.glob("Gyan.FFmpeg*/ffmpeg-*/bin/ffmpeg.exe"))
     ffprobe_candidates = sorted(FFMPEG_ROOT.glob("Gyan.FFmpeg*/ffmpeg-*/bin/ffprobe.exe"))
 
@@ -53,6 +59,8 @@ configure_ffmpeg()
 
 
 def sniff_format(filename: str | None) -> str | None:
+    """Infer the supported upload format from the file extension."""
+
     if not filename:
         return None
 
@@ -64,6 +72,8 @@ def sniff_format(filename: str | None) -> str | None:
 
 
 def decode_wav(contents: bytes) -> tuple[np.ndarray, int]:
+    """Decode WAV bytes into a mono float array."""
+
     try:
         with wave.open(io.BytesIO(contents), "rb") as wav_file:
             channels = wav_file.getnchannels()
@@ -80,6 +90,7 @@ def decode_wav(contents: bytes) -> tuple[np.ndarray, int]:
     dtype_map = {1: np.uint8, 2: np.int16, 4: np.int32}
     audio = np.frombuffer(raw_frames, dtype=dtype_map[sample_width]).astype(np.float32)
 
+    # Fold multichannel uploads into a single mono stream so every client follows one path.
     if channels > 1:
         audio = audio.reshape(-1, channels).mean(axis=1)
 
@@ -93,6 +104,8 @@ def decode_wav(contents: bytes) -> tuple[np.ndarray, int]:
 
 
 def decode_compressed_audio(contents: bytes, format_hint: str) -> tuple[np.ndarray, int]:
+    """Decode MP3 input through pydub/ffmpeg and convert it to mono floats."""
+
     try:
         segment = AudioSegment.from_file(io.BytesIO(contents), format=format_hint)
     except Exception as exc:  # pragma: no cover - backend surfaces as HTTP 400
@@ -119,6 +132,8 @@ def decode_compressed_audio(contents: bytes, format_hint: str) -> tuple[np.ndarr
 
 
 def decode_audio(contents: bytes, filename: str | None) -> tuple[np.ndarray, int]:
+    """Decode any supported upload format into raw samples and a sample rate."""
+
     format_hint = sniff_format(filename)
 
     if format_hint == "wav":
@@ -134,6 +149,8 @@ def decode_audio(contents: bytes, filename: str | None) -> tuple[np.ndarray, int
 
 
 def resample_audio(samples: np.ndarray, sample_rate: int, target_rate: int = TARGET_SAMPLE_RATE) -> np.ndarray:
+    """Resample audio to the shared target rate used by the fingerprint pipeline."""
+
     if sample_rate == target_rate:
         return samples.astype(np.float32)
 
@@ -148,6 +165,8 @@ def resample_audio(samples: np.ndarray, sample_rate: int, target_rate: int = TAR
 
 
 def normalize_audio(samples: np.ndarray) -> np.ndarray:
+    """Center and peak-normalize the waveform before fingerprinting."""
+
     if samples.size == 0:
         raise UnsupportedAudioError("The uploaded audio file is empty.")
 
@@ -161,6 +180,8 @@ def normalize_audio(samples: np.ndarray) -> np.ndarray:
 
 
 def trim_audio(samples: np.ndarray, sample_rate: int, max_duration_seconds: float) -> np.ndarray:
+    """Trim audio from the front when it exceeds the accepted duration budget."""
+
     max_samples = int(sample_rate * max_duration_seconds)
     if samples.size <= max_samples:
         return samples
@@ -169,6 +190,8 @@ def trim_audio(samples: np.ndarray, sample_rate: int, max_duration_seconds: floa
 
 
 def exact_fingerprint(samples: np.ndarray) -> AudioFingerprint:
+    """Hash normalized PCM16 data for strict repeatability."""
+
     quantized = np.round(samples * 32767.0).astype(np.int16)
     digest = hashlib.sha256(quantized.tobytes()).hexdigest()
     preview = "-".join(digest[index:index + 4] for index in range(0, 16, 4))
@@ -176,12 +199,15 @@ def exact_fingerprint(samples: np.ndarray) -> AudioFingerprint:
 
 
 def robust_fingerprint(samples: np.ndarray) -> AudioFingerprint:
+    """Hash coarse spectral peaks so similar recordings stay closer together."""
+
     window_size = 2048
     hop_size = 512
 
     if samples.size < window_size:
         samples = np.pad(samples, (0, window_size - samples.size)).astype(np.float32)
 
+    # Build overlapping windows to capture the rough spectral shape over time.
     windows: list[np.ndarray] = []
     for start in range(0, samples.size - window_size + 1, hop_size):
         frame = samples[start:start + window_size]
@@ -213,10 +239,13 @@ def fingerprint_audio(
     filename: str | None = None,
     trim_if_needed: bool = False,
 ) -> AudioFingerprint:
+    """Run the full backend fingerprint pipeline for one uploaded file."""
+
     decoded, sample_rate = decode_audio(contents, filename)
     duration_seconds = decoded.size / float(sample_rate) if sample_rate else 0.0
     target_duration_seconds = float(AUDIO_LIMITS.max_duration_seconds)
 
+    # Oversized uploads get a proportional trim budget when trimming is allowed.
     if len(contents) > AUDIO_LIMITS.max_upload_size_bytes:
         size_ratio = AUDIO_LIMITS.max_upload_size_bytes / float(len(contents))
         target_duration_seconds = min(
@@ -250,6 +279,8 @@ def fingerprint_audio(
 
 
 def password_from_digest(digest: str, length: int = 18) -> str:
+    """Map a hex digest to a readable password with mixed character classes."""
+
     alphabet_length = len(PASSWORD_ALPHABET)
     characters = [
         PASSWORD_ALPHABET[int(digest[index:index + 2], 16) % alphabet_length]

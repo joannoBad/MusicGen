@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,8 +13,8 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
+      {/* The shell stays neutral because the visible language is selected in the client UI. */}
       <body>{children}</body>
     </html>
   );
 }
-

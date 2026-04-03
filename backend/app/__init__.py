@@ -1,1 +1,1 @@
-
+"""MusicGen backend package."""

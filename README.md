@@ -1,75 +1,77 @@
 # MusicGen
 
 Don't want to install a password manager?  
-Store passwords in a notebook?  
-Worry about encrypting a password before sending it to a friend in a messenger?
+Don't want to keep passwords in a notebook?  
+Don't want to overthink how to encrypt a password before sending it to a friend?
 
-Then send your friend a piece of audio instead: a favorite song, a voice message, or even two minutes of your cat meowing.
+Send a piece of audio instead: a favorite song, a voice message, or even two minutes of your cat meowing.
 
-Feel like James Bond.  
-Generate a password from your favorite track.  
+Feel a little like James Bond.  
+Generate a password from sound.  
 Keep your passwords like a playlist.
 
-MusicGen turns audio into a deterministic password based on its acoustic fingerprint. The same suitable audio fragment can produce the same password when used with the same generation mode.
+MusicGen turns audio into a deterministic password built from its acoustic fingerprint.
 
-## Important
+## Important warning
 
-This project should not be used for truly critical secrets such as banking, primary email accounts, crypto wallets, master passwords, or other high-risk authentication scenarios.
+MusicGen is a creative tool, not a serious replacement for a mature security workflow.
 
-The reason is simple: if someone uses the same audio fragment with the same mode, they can get the same password. MusicGen is best treated as an unusual tool, a creative way to exchange passwords, or a demonstration of the idea, not as a replacement for a mature secret-management solution.
+Do **not** use it for:
 
-## What the app can do
+- banking
+- primary email accounts
+- crypto wallets
+- password-manager master passwords
+- anything where a repeated password would become a real incident
 
-- Generate a password from audio using an acoustic fingerprint.
-- Support `WAV` and `MP3`.
-- Offer two generation modes:
-  - `Exact` for maximum repeatability with the same audio.
-  - `Robust` for a more tolerant response to similar versions of the same recording.
-- Preview the uploaded audio.
-- Show a live music-style visualization during playback.
+The main caveat is simple: if someone uses the same audio fragment with the same generation mode, they can reproduce the same password.
+
+## What the app does
+
+- Generates deterministic passwords from `WAV` and `MP3` audio.
+- Supports two fingerprint modes: `Exact` and `Robust`.
+- Lets the user preview uploaded audio before generation.
+- Trims oversized uploads in the browser before they are sent to the server.
+- Offers an offline desktop build that works without internet access.
 
 ## App variants
 
 ### Web version
 
-The web version consists of a frontend and a server:
+The web version is split into two parts:
 
-- `frontend/` — UI built with `Next.js`, `React`, and `TypeScript`
-- `backend/` — API and audio-analysis logic built with `FastAPI` and `Python`
+- `frontend/` - `Next.js`, `React`, `TypeScript`
+- `backend/` - `FastAPI`, `Python`, deterministic audio processing
 
-This version is a good fit if you want to run the project locally, explore the interface, and experiment with audio-based password generation.
+This version is the canonical one for repeatable cross-device results, because the password is generated on the server with one shared pipeline.
 
 ### Desktop version
 
-The repository also contains a separate standalone version in `desktop/`.
+The repository also includes a standalone desktop app in [desktop/](d:/projects/MusicGen/desktop).
 
 It:
 
-- works fully offline
-- does not require a server
-- does not require internet access
-- can be built as a Windows `portable` package
+- works offline
+- does not need the web server
+- does not need internet access
+- can be packaged as a Windows portable build
 
-This version is a good fit if you want MusicGen as a separate local application.
-
-## Technologies
+## Technology stack
 
 - Frontend: `Next.js 15`, `React 19`, `TypeScript`
 - Backend: `FastAPI`, `Python`
 - Desktop: `Electron`
-- Audio analysis: deterministic normalization, spectral features, deterministic password mapping
+- Audio pipeline: deterministic normalization, exact PCM hashing, robust spectral hashing
 
-## How to run it
+## How a regular user can run it
 
 ### Web version on Windows
 
 1. Open the project folder.
 2. Run [start_prod.cmd](d:/projects/MusicGen/start_prod.cmd).
-3. Open `http://127.0.0.1:3000` in your browser.
+3. Open `http://127.0.0.1:3000` in a browser.
 
-Stop:
-
-1. Run [stop_prod.cmd](d:/projects/MusicGen/stop_prod.cmd).
+To stop it, run [stop_prod.cmd](d:/projects/MusicGen/stop_prod.cmd).
 
 ### Web version on Linux
 
@@ -85,13 +87,9 @@ chmod +x start_prod.sh stop_prod.sh scripts/*.sh
 ./start_prod.sh
 ```
 
-3. Open:
+3. Open `http://127.0.0.1:3000`.
 
-```text
-http://127.0.0.1:3000
-```
-
-Stop:
+To stop it:
 
 ```bash
 ./stop_prod.sh
@@ -99,21 +97,17 @@ Stop:
 
 ### Desktop version
 
-If the desktop build is already prepared, run:
+If you already have the build, run the portable executable from [desktop/dist](d:/projects/MusicGen/desktop/dist).
 
-[MusicGen-Portable-0.1.0.exe](d:/projects/MusicGen/desktop/dist/MusicGen-Portable-0.1.0.exe)
-
-If you want to build it yourself, the technical steps are documented here:
-
-[TECHNICAL.md](d:/projects/MusicGen/TECHNICAL.md)
+If you want the build and packaging steps, use the full [technical guide](d:/projects/MusicGen/TECHNICAL.md).
 
 ## How it works
 
-1. You upload an audio file.
-2. The app brings the audio into a more stable form for analysis.
-3. An acoustic fingerprint is extracted from the sound.
-4. That fingerprint is transformed into a deterministic password.
-5. If you use the same file with the same mode, the result aims to stay reproducible.
+1. Upload or choose an audio file.
+2. MusicGen normalizes the signal into a stable analysis format.
+3. The app extracts an acoustic fingerprint.
+4. The fingerprint is hashed into a deterministic password.
+5. The same suitable input with the same mode is expected to produce the same result.
 
 ## Screenshots
 
@@ -121,34 +115,38 @@ If you want to build it yourself, the technical steps are documented here:
 
 ![MusicGen home screen](docs/screenshots/home-main.png)
 
-The main web screen with the logo, language switcher, and the core idea of the app.
+The main web screen with the logo, language switcher, and the project pitch.
 
 ### Mode selection and audio upload
 
 ![Mode selection and audio upload](docs/screenshots/upload-and-mode.png)
 
-The upload panel, fingerprint mode switcher, and the main entry point for generating a password from audio.
+The upload panel, fingerprint mode switcher, and the main entry point for password generation.
 
 ### Audio size and duration limits
 
-![Audio size and duration limits](docs/screenshots/generated-password.png)
+![Audio size and duration limits](docs/screenshots/audio-limits-modal.png)
 
-If the uploaded file exceeds the allowed limits, MusicGen offers to trim it before analysis or choose another file.
+If the uploaded file exceeds the configured limits, MusicGen offers to trim it before upload or choose another file.
 
-### Generated password and playback visualization
+### Generated password
 
-![Generated password and playback visualization](docs/screenshots/audio-visualizer.png)
+![Generated password](docs/screenshots/generated-password.png)
 
-The result panel with the generated password, generation mode, algorithm, quick actions such as show, hide, and copy, and a neon visualization inspired by old-school media players during playback.
+The result panel with the generated password, mode, algorithm, and quick actions such as show, hide, and copy.
+
+### Playback visualization
+
+![Playback visualization](docs/screenshots/audio-visualizer.png)
+
+The neon playback visualizer that reacts while the uploaded audio is playing.
 
 ### Desktop version
 
 ![MusicGen desktop version](docs/screenshots/desktop-version.png)
 
-The standalone offline version of the app that can be launched separately from the web stack and built as a portable package.
+The standalone offline build that mirrors the web style in a native app window.
 
 ## For developers
 
-The full technical guide covering project structure, build steps, startup flow, Linux deployment, and desktop packaging is available here:
-
-[TECHNICAL.md](d:/projects/MusicGen/TECHNICAL.md)
+The full setup, deployment, testing, and packaging instructions live in the [technical guide](d:/projects/MusicGen/TECHNICAL.md).

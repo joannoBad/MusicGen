@@ -16,6 +16,8 @@ const COPY = {
   pcmLock: "PCM lock",
   spectralDrift: "Spectral drift",
   chooseFileError: "Сначала выберите аудиофайл.",
+  emptyFileError: "Загруженный файл пуст.",
+  decodeFailed: "Не удалось декодировать аудиофайл. Проверьте формат и целостность файла.",
   genericError: "Не удалось обработать аудио.",
   trimFailed: "Не удалось подготовить обрезанную версию этого аудио.",
   passwordCopied: "Скопировано",
@@ -106,6 +108,7 @@ const trimActionButton = document.getElementById("trim-action-button");
 const replaceActionButton = document.getElementById("replace-action-button");
 
 function buildLogo() {
+  // The desktop logo uses the same radial bars as the web header.
   for (let index = 0; index < 64; index += 1) {
     const bar = document.createElement("span");
     const angle = index * 5.625;
@@ -119,6 +122,7 @@ function buildLogo() {
 }
 
 function buildVisualizer() {
+  // Prebuild the bars once and only animate their scale during playback.
   visualizer.innerHTML = "";
 
   for (let index = 0; index < 28; index += 1) {
@@ -168,6 +172,7 @@ function setProgress(visible, percent = 0, label = "") {
 }
 
 function startProgressLoop() {
+  // A staged progress loop makes local processing feel less abrupt.
   const stages = [
     { limit: 24, label: COPY.progressWaiting },
     { limit: 72, label: COPY.progressAnalyzing },
@@ -239,6 +244,7 @@ async function sha256Hex(data) {
 }
 
 function passwordFromDigest(digest, length = 18) {
+  // Keep the generated password readable while still forcing mixed character classes.
   const alphabetLength = PASSWORD_ALPHABET.length;
   const characters = Array.from({ length }, (_, index) => {
     const fragment = digest.slice(index * 2, index * 2 + 2);
@@ -256,6 +262,7 @@ function passwordFromDigest(digest, length = 18) {
 }
 
 function mixToMono(channels) {
+  // Matching the web/backend mono path keeps the offline build predictable.
   if (channels.length === 1) {
     return channels[0];
   }
@@ -294,6 +301,7 @@ function resampleMono(samples, sourceRate, targetRate) {
 }
 
 function normalizeAudio(samples) {
+  // Centering and peak normalization keep the fingerprint stable across loudness changes.
   let sum = 0;
   for (const sample of samples) {
     sum += sample;
@@ -329,6 +337,7 @@ function floatToPcm16(samples) {
 }
 
 function serializeRobustFingerprint(samples) {
+  // The desktop robust mode uses a light-weight local approximation of spectral peaks.
   const frameSize = 512;
   const hopSize = 256;
   const bandCount = 8;
@@ -421,6 +430,11 @@ function encodeWavFromMono(samples, sampleRate) {
 }
 
 async function trimAudioInBrowser(file, targetDurationSeconds) {
+  // Oversized files are trimmed before analysis so the offline app stays responsive.
+  if (file.size === 0) {
+    throw new Error(COPY.emptyFileError);
+  }
+
   const context = new AudioContext();
 
   try {
@@ -445,6 +459,11 @@ async function trimAudioInBrowser(file, targetDurationSeconds) {
 }
 
 async function decodeAndNormalize(file) {
+  // This is the shared preparation step for both password modes.
+  if (file.size === 0) {
+    throw new Error(COPY.emptyFileError);
+  }
+
   const context = new AudioContext();
 
   try {
@@ -454,6 +473,12 @@ async function decodeAndNormalize(file) {
     const mono = mixToMono(channels);
     const resampled = resampleMono(mono, decoded.sampleRate, TARGET_SAMPLE_RATE);
     return normalizeAudio(resampled);
+  } catch (error) {
+    if (error instanceof Error && error.message) {
+      throw error;
+    }
+
+    throw new Error(COPY.decodeFailed);
   } finally {
     await context.close();
   }
@@ -532,6 +557,13 @@ async function handleFileSelection(file) {
     return;
   }
 
+  if (file.size === 0) {
+    trimOnUpload = false;
+    setCurrentFile(null);
+    setError(COPY.emptyFileError);
+    return;
+  }
+
   const durationSeconds = await getAudioDurationSeconds(file).catch(() => 0);
   const tooLarge = file.size > MAX_UPLOAD_SIZE_BYTES;
   const tooLong = durationSeconds > MAX_DURATION_SECONDS;
@@ -550,6 +582,7 @@ async function handleFileSelection(file) {
 }
 
 async function connectAudioVisualizer() {
+  // Reuse a single audio graph so repeated playback stays smooth.
   if (!audioContext) {
     audioContext = new AudioContext();
   }
@@ -579,6 +612,7 @@ function animateVisualizer() {
   const spectrum = new Uint8Array(analyserNode.frequencyBinCount);
   analyserNode.getByteFrequencyData(spectrum);
 
+  // Bucket the analyser output into a compact retro-style equalizer.
   const barCount = 28;
   const bucketSize = Math.max(1, Math.floor(spectrum.length / barCount));
   const nextBars = Array.from({ length: barCount }, (_, index) => {

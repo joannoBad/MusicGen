@@ -16,3 +16,4 @@ logs/
 desktop/node_modules/
 desktop/dist/
 desktop/out/
+.local_docs/

@@ -1,7 +1,8 @@
-﻿const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow } = require("electron");
 const path = require("node:path");
 
 function createWindow() {
+  // Give the desktop UI enough room to match the web layout without feeling cramped.
   const win = new BrowserWindow({
     width: 1320,
     height: 900,
@@ -32,9 +33,8 @@ app.whenReady().then(() => {
 });
 
 app.on("window-all-closed", () => {
+  // Keep the usual macOS behavior where the app stays open until the user quits it.
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
-
-
