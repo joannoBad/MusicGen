@@ -1,160 +1,154 @@
 # MusicGen
 
-Не хотите устанавливать менеджер паролей?  
-Хранить пароли в блокноте?  
-Заморачиваться с шифрованием пароля перед отправкой его в мессенджере другу?
+Don't want to install a password manager?  
+Store passwords in a notebook?  
+Worry about encrypting a password before sending it to a friend in a messenger?
 
-Тогда отправьте другу музыку или любой другой подходящий фрагмент: любимую песню, голосовое сообщение или даже две минуты мяукания вашего кота.
+Then send your friend a piece of audio instead: a favorite song, a voice message, or even two minutes of your cat meowing.
 
-Почувствуйте себя Джеймсом Бондом.  
-Сгенерируйте пароль, используя вашу любимую песню.  
-Храните свои пароли как плейлист.
+Feel like James Bond.  
+Generate a password from your favorite track.  
+Keep your passwords like a playlist.
 
-MusicGen превращает аудио в детерминированный пароль по его акустическому отпечатку. Один и тот же подходящий аудиофрагмент может дать один и тот же пароль, если использовать одинаковый режим генерации.
+MusicGen turns audio into a deterministic password based on its acoustic fingerprint. The same suitable audio fragment can produce the same password when used with the same generation mode.
 
-## Важно
+## Important
 
-Этот проект не стоит использовать для по-настоящему критичных вещей: банков, основных почтовых ящиков, криптокошельков, мастер-паролей и другой высокорисковой авторизации.
+This project should not be used for truly critical secrets such as banking, primary email accounts, crypto wallets, master passwords, or other high-risk authentication scenarios.
 
-Причина простая: если кто-то использует тот же самый аудиофрагмент и тот же режим, он может получить тот же самый пароль. MusicGen лучше рассматривать как необычный инструмент, творческий способ обмена паролями или демонстрацию идеи, а не как замену зрелой системе управления секретами.
+The reason is simple: if someone uses the same audio fragment with the same mode, they can get the same password. MusicGen is best treated as an unusual tool, a creative way to exchange passwords, or a demonstration of the idea, not as a replacement for a mature secret-management solution.
 
-## Что умеет приложение
+## What the app can do
 
-- Генерирует пароль из аудио по акустическому отпечатку.
-- Поддерживает `WAV` и `MP3`.
-- Имеет два режима генерации:
-  - `Exact` для максимально повторяемого результата на одном и том же аудио.
-  - `Robust` для более устойчивой реакции на похожие версии одной записи.
-- Позволяет прослушать загруженное аудио.
-- Показывает визуализацию во время воспроизведения.
+- Generate a password from audio using an acoustic fingerprint.
+- Support `WAV` and `MP3`.
+- Offer two generation modes:
+  - `Exact` for maximum repeatability with the same audio.
+  - `Robust` for a more tolerant response to similar versions of the same recording.
+- Preview the uploaded audio.
+- Show a live music-style visualization during playback.
 
-## Варианты приложения
+## App variants
 
-### Веб-версия
+### Web version
 
-Веб-версия состоит из фронтенда и сервера:
+The web version consists of a frontend and a server:
 
-- `frontend/` — интерфейс на `Next.js`, `React`, `TypeScript`
-- `backend/` — API и логика анализа аудио на `FastAPI` и `Python`
+- `frontend/` — UI built with `Next.js`, `React`, and `TypeScript`
+- `backend/` — API and audio-analysis logic built with `FastAPI` and `Python`
 
-Подходит, если вы хотите быстро запустить проект локально, посмотреть интерфейс и поэкспериментировать с генерацией паролей из аудио.
+This version is a good fit if you want to run the project locally, explore the interface, and experiment with audio-based password generation.
 
-### Desktop-версия
+### Desktop version
 
-В репозитории есть отдельная автономная версия в папке `desktop/`.
+The repository also contains a separate standalone version in `desktop/`.
 
-Она:
+It:
 
-- работает полностью офлайн
-- не требует сервера
-- не требует интернета
-- может быть собрана в `portable`-формат для Windows
+- works fully offline
+- does not require a server
+- does not require internet access
+- can be built as a Windows `portable` package
 
-Подходит, если хочется запускать MusicGen как отдельное локальное приложение.
+This version is a good fit if you want MusicGen as a separate local application.
 
-## Технологии
+## Technologies
 
 - Frontend: `Next.js 15`, `React 19`, `TypeScript`
 - Backend: `FastAPI`, `Python`
 - Desktop: `Electron`
-- Аудио-анализ: нормализация аудио, спектральные признаки, детерминированный маппинг в пароль
+- Audio analysis: deterministic normalization, spectral features, deterministic password mapping
 
-## Как запустить
+## How to run it
 
-### Веб-версия на Windows
+### Web version on Windows
 
-1. Откройте папку проекта.
-2. Запустите файл [start_prod.cmd](d:/projects/MusicGen/start_prod.cmd).
-3. Откройте в браузере `http://127.0.0.1:3000`
+1. Open the project folder.
+2. Run [start_prod.cmd](d:/projects/MusicGen/start_prod.cmd).
+3. Open `http://127.0.0.1:3000` in your browser.
 
-Остановка:
+Stop:
 
-1. Запустите [stop_prod.cmd](d:/projects/MusicGen/stop_prod.cmd)
+1. Run [stop_prod.cmd](d:/projects/MusicGen/stop_prod.cmd).
 
-### Веб-версия на Linux
+### Web version on Linux
 
-1. Сделайте скрипты исполняемыми:
+1. Make the scripts executable:
 
 ```bash
 chmod +x start_prod.sh stop_prod.sh scripts/*.sh
 ```
 
-2. Запустите:
+2. Start the app:
 
 ```bash
 ./start_prod.sh
 ```
 
-3. Откройте:
+3. Open:
 
 ```text
 http://127.0.0.1:3000
 ```
 
-Остановка:
+Stop:
 
 ```bash
 ./stop_prod.sh
 ```
 
-### Desktop-версия
+### Desktop version
 
-Если desktop-версия уже собрана, запустите portable-файл:
+If the desktop build is already prepared, run:
 
 [MusicGen-Portable-0.1.0.exe](d:/projects/MusicGen/desktop/dist/MusicGen-Portable-0.1.0.exe)
 
-Если вы хотите собрать её сами, технические шаги вынесены в отдельную инструкцию:
+If you want to build it yourself, the technical steps are documented here:
 
 [TECHNICAL.md](d:/projects/MusicGen/TECHNICAL.md)
 
-## Как работает приложение
+## How it works
 
-1. Вы загружаете аудиофайл.
-2. Приложение приводит аудио к более стабильному виду для анализа.
-3. Из звука извлекается акустический отпечаток.
-4. Этот отпечаток преобразуется в детерминированный пароль.
-5. Если использовать тот же файл и тот же режим, результат старается оставаться воспроизводимым.
+1. You upload an audio file.
+2. The app brings the audio into a more stable form for analysis.
+3. An acoustic fingerprint is extracted from the sound.
+4. That fingerprint is transformed into a deterministic password.
+5. If you use the same file with the same mode, the result aims to stay reproducible.
 
-## Скриншоты
+## Screenshots
 
-### Главный экран
+### Home screen
 
-![Главный экран MusicGen](docs/screenshots/home-main.png)
+![MusicGen home screen](docs/screenshots/home-main.png)
 
-Главный экран веб-версии с логотипом, переключателем языка и основным описанием приложения.
+The main web screen with the logo, language switcher, and the core idea of the app.
 
-### Выбор режима и загрузка аудио
+### Mode selection and audio upload
 
-![Выбор режима и загрузка аудио](docs/screenshots/upload-and-mode.png)
+![Mode selection and audio upload](docs/screenshots/upload-and-mode.png)
 
-Панель загрузки файла, выбор режима отпечатка и подготовка аудио к генерации пароля.
+The upload panel, fingerprint mode switcher, and the main entry point for generating a password from audio.
 
-### Окно ограничения по размеру и длительности
+### Audio size and duration limits
 
-![Ограничения по размеру и длительности аудио](docs/screenshots/audio-limits-modal.png)
+![Audio size and duration limits](docs/screenshots/generated-password.png)
 
-Если аудио превышает допустимые лимиты, приложение предлагает обрезать его прямо в браузере или выбрать другой файл.
+If the uploaded file exceeds the allowed limits, MusicGen offers to trim it before analysis or choose another file.
 
-### Сгенерированный пароль
+### Generated password and playback visualization
 
-![Сгенерированный пароль](docs/screenshots/generated-password.png)
+![Generated password and playback visualization](docs/screenshots/audio-visualizer.png)
 
-Блок результата с паролем, режимом генерации, алгоритмом и дополнительными действиями: показать, скрыть и скопировать.
+The result panel with the generated password, generation mode, algorithm, quick actions such as show, hide, and copy, and a neon visualization inspired by old-school media players during playback.
 
-### Визуализация при воспроизведении
+### Desktop version
 
-![Визуализация при воспроизведении аудио](docs/screenshots/audio-visualizer.png)
+![MusicGen desktop version](docs/screenshots/desktop-version.png)
 
-Во время прослушивания загруженного файла в панели результата оживает неоновая визуализация в стиле старых аудиоплееров.
+The standalone offline version of the app that can be launched separately from the web stack and built as a portable package.
 
-### Desktop-версия
+## For developers
 
-![Desktop-версия MusicGen](docs/screenshots/desktop-version.png)
-
-Автономная офлайн-версия приложения, которую можно запускать отдельно от веб-части и собирать в portable-формат.
-
-## Для разработчиков
-
-Полная техническая инструкция по структуре проекта, сборке, запуску, Linux-развёртыванию и desktop-сценариям находится здесь:
+The full technical guide covering project structure, build steps, startup flow, Linux deployment, and desktop packaging is available here:
 
 [TECHNICAL.md](d:/projects/MusicGen/TECHNICAL.md)
