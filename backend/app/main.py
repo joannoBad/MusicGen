@@ -6,7 +6,7 @@ from app.limits import load_audio_limits
 from app.schemas import PasswordMode, PasswordResponse
 
 # Keep the API version aligned with the current git tag.
-app = FastAPI(title="MusicGen Password Lab API", version="0.1.1")
+app = FastAPI(title="MusicGen Password Lab API", version="0.1.2")
 AUDIO_LIMITS = load_audio_limits()
 
 app.add_middleware(

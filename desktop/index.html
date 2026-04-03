@@ -9,45 +9,50 @@
   <body>
     <main class="page-shell">
       <section class="hero">
-        <div class="hero-brand">
-          <div class="musicgen-logo" aria-hidden="true">
-            <div class="musicgen-logo-ring" id="logo-ring"></div>
-            <div class="musicgen-logo-core"></div>
+        <div class="hero-topline">
+          <div class="hero-brand">
+            <div class="musicgen-logo" aria-hidden="true">
+              <div class="musicgen-logo-ring" id="logo-ring"></div>
+              <div class="musicgen-logo-core"></div>
+            </div>
+            <div class="hero-copy">
+              <h1>MusicGen</h1>
+              <p class="eyebrow" id="hero-eyebrow"></p>
+            </div>
           </div>
-          <div class="hero-copy">
-            <h1>MusicGen</h1>
-            <p class="eyebrow">Автономный режим без интернета</p>
+
+          <div class="language-switcher" role="group" aria-label="Language switcher">
+            <button class="language-pill language-pill-active" data-language="ru" type="button">RU</button>
+            <button class="language-pill" data-language="en" type="button">ENG</button>
           </div>
         </div>
-        <p class="lede">
-          Локальная desktop-версия считает пароль полностью на этом устройстве. Аудио не отправляется на сервер и
-          может обрабатываться офлайн.
-        </p>
+
+        <p class="lede" id="hero-lede"></p>
       </section>
 
       <section class="panel-grid">
         <form class="card upload-card" id="generator-form">
           <div class="card-header">
-            <p class="section-kicker">Ввод</p>
-            <h2>Загрузка аудио</h2>
+            <p class="section-kicker" id="input-kicker"></p>
+            <h2 id="upload-title"></h2>
           </div>
 
           <div class="status-strip" aria-hidden="true">
             <span class="status-dot"></span>
-            <span id="signal-status">Ожидание сигнала</span>
+            <span id="signal-status"></span>
             <span class="status-divider"></span>
-            <span id="mode-status">PCM lock</span>
+            <span id="mode-status"></span>
           </div>
 
           <div class="mode-section">
             <div class="subsection-heading">
-              <p class="section-kicker">Режим отпечатка</p>
+              <p class="section-kicker" id="mode-kicker"></p>
             </div>
 
             <div class="mode-segmented" role="radiogroup" aria-label="Fingerprint mode">
               <button class="mode-segment mode-segment-active" data-mode="exact" type="button">
                 <div class="mode-segment-topline">
-                  <strong>Точный</strong>
+                  <strong id="mode-exact-label"></strong>
                   <span class="mode-chip">EXACT</span>
                 </div>
                 <span class="mode-tooltip" role="tooltip">
@@ -80,16 +85,14 @@
                         </g>
                       </svg>
                     </span>
-                    <span class="tooltip-copy">
-                      Фиксируется на нормализованном PCM и стабильно повторяет результат для одного и того же аудио.
-                    </span>
+                    <span class="tooltip-copy" id="mode-exact-description"></span>
                   </span>
                 </span>
               </button>
 
               <button class="mode-segment" data-mode="robust" type="button">
                 <div class="mode-segment-topline">
-                  <strong>Устойчивый</strong>
+                  <strong id="mode-robust-label"></strong>
                   <span class="mode-chip">ROBUST</span>
                 </div>
                 <span class="mode-tooltip" role="tooltip">
@@ -115,9 +118,7 @@
                         </g>
                       </svg>
                     </span>
-                    <span class="tooltip-copy">
-                      Ориентируется на доминирующую спектральную структуру, чтобы похожие записи оставались ближе.
-                    </span>
+                    <span class="tooltip-copy" id="mode-robust-description"></span>
                   </span>
                 </span>
               </button>
@@ -125,60 +126,60 @@
           </div>
 
           <label class="file-dropzone">
-            <span id="dropzone-title">Перетащите WAV или MP3 сюда или выберите файл вручную.</span>
-            <small>Генератор принимает WAV и MP3 до 20 МБ и 120 секунд.</small>
+            <span id="dropzone-title"></span>
+            <small id="dropzone-hint"></small>
             <span class="file-picker-row">
-              <span class="file-picker-button">Выбрать аудио</span>
-              <span class="file-picker-name" id="file-name">Файл не выбран</span>
+              <span class="file-picker-button" id="select-audio-label"></span>
+              <span class="file-picker-name" id="file-name"></span>
             </span>
             <input id="audio-input" accept=".wav,.mp3,audio/wav,audio/mpeg" type="file" />
           </label>
 
-          <p class="trim-badge hidden" id="trim-badge">Аудио обрезано на этом устройстве перед анализом</p>
+          <p class="trim-badge hidden" id="trim-badge"></p>
 
           <div class="audio-preview hidden" id="audio-preview-block">
-            <p class="label">Прослушать аудио</p>
+            <p class="label" id="preview-audio-label"></p>
             <audio controls class="audio-player" id="audio-preview"></audio>
           </div>
 
-          <button class="submit-button" id="generate-button" disabled type="submit">Сгенерировать пароль</button>
+          <button class="submit-button" id="generate-button" disabled type="submit"></button>
 
           <div class="progress-panel hidden" id="progress-panel" aria-live="polite">
             <div class="progress-copy">
-              <p class="label">Ход генерации</p>
-              <p id="progress-label">Подготовка аудиопотока</p>
+              <p class="label" id="progress-title"></p>
+              <p id="progress-label"></p>
             </div>
             <div class="progress-track">
               <span class="progress-fill" id="progress-fill" style="width: 0%"></span>
             </div>
           </div>
 
-          <p class="microcopy">Desktop-режим: аудио и пароль остаются только на этом устройстве.</p>
+          <p class="microcopy" id="desktop-note"></p>
         </form>
 
         <aside class="card result-card">
           <div class="card-header">
-            <p class="section-kicker">Результат</p>
-            <h2>Сгенерированный пароль</h2>
+            <p class="section-kicker" id="output-kicker"></p>
+            <h2 id="result-title"></h2>
           </div>
 
           <div class="empty-shell" id="empty-state">
             <div class="empty-orb" aria-hidden="true"></div>
-            <p class="empty-state">Сгенерированный пароль появится здесь после анализа.</p>
+            <p class="empty-state" id="empty-state-text"></p>
           </div>
 
           <div class="result-stack hidden" id="result-stack">
             <div class="result-highlight">
-              <p class="label">Пароль</p>
+              <p class="label" id="password-label"></p>
               <div class="password-row">
                 <code class="password-block" id="password-block">******************</code>
-                <button class="icon-button" id="toggle-password" type="button" aria-label="Показать пароль" title="Показать пароль">
+                <button class="icon-button" id="toggle-password" type="button">
                   <svg aria-hidden="true" class="action-icon" viewBox="0 0 24 24">
                     <path id="eye-path" d="M3 4.5 20 19.5M6.1 7.2C7.8 5.9 9.8 5.2 12 5.2c6.7 0 10.5 6.8 10.5 6.8-.8 1.4-1.8 2.6-2.9 3.7M9 9.3a4 4 0 0 1 5.5 5.5M1.5 12c.8-1.3 1.8-2.5 3-3.6m2.2 8.2A11 11 0 0 0 12 18.5" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
                     <circle id="eye-circle" class="hidden" cx="12" cy="12" r="3.1" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
                   </svg>
                 </button>
-                <button class="icon-button" id="copy-password" type="button" aria-label="Скопировать пароль" title="Скопировать пароль">
+                <button class="icon-button" id="copy-password" type="button">
                   <svg aria-hidden="true" class="action-icon" viewBox="0 0 24 24">
                     <path d="M8 7.5A2.5 2.5 0 0 1 10.5 5h6A2.5 2.5 0 0 1 19 7.5v9a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 8 16.5v-9ZM5 9.5V6.8A2.8 2.8 0 0 1 7.8 4H14" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
                   </svg>
@@ -189,7 +190,7 @@
             <div class="result-meta">
               <div class="meta-tile meta-tile-pill">
                 <div class="meta-tile-heading">
-                  <p class="label">Режим</p>
+                  <p class="label" id="mode-result-label"></p>
                   <span class="meta-info-wrap meta-info-wrap-left" tabindex="0">
                     <svg aria-hidden="true" class="meta-info-icon" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
@@ -225,14 +226,14 @@
                   </span>
                 </div>
                 <div class="result-pill result-pill-mode">
-                  <strong id="result-mode-label">Точный</strong>
-                  <span class="result-pill-tag" id="result-mode-tag">exact</span>
+                  <strong id="result-mode-label"></strong>
+                  <span class="result-pill-tag" id="result-mode-tag"></span>
                 </div>
               </div>
 
               <div class="meta-tile meta-tile-pill">
                 <div class="meta-tile-heading">
-                  <p class="label">Алгоритм</p>
+                  <p class="label" id="algorithm-result-label"></p>
                   <span class="meta-info-wrap meta-info-wrap-right" tabindex="0">
                     <svg aria-hidden="true" class="meta-info-icon" viewBox="0 0 24 24">
                       <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"></circle>
@@ -268,8 +269,8 @@
                   </span>
                 </div>
                 <div class="result-pill result-pill-algorithm">
-                  <strong id="result-algorithm-label">PCM SHA-256</strong>
-                  <span class="result-pill-tag" id="result-algorithm-tag">PCM16</span>
+                  <strong id="result-algorithm-label"></strong>
+                  <span class="result-pill-tag" id="result-algorithm-tag"></span>
                 </div>
               </div>
             </div>
@@ -285,17 +286,14 @@
 
       <div class="limit-modal-backdrop hidden" id="limit-modal-backdrop" role="presentation">
         <div class="limit-modal" role="dialog" aria-modal="true" aria-labelledby="limit-modal-title">
-          <p class="section-kicker">Аудио превышает лимиты генератора</p>
+          <p class="section-kicker" id="limit-kicker"></p>
           <h3 id="limit-modal-title"></h3>
-          <p class="limit-modal-text">
-            Этот файл больше или длиннее допустимых лимитов. Его можно обрезать прямо на этом устройстве перед
-            анализом или выбрать другой файл.
-          </p>
-          <p class="limit-modal-details" id="limit-modal-limit">Текущий лимит: 20 МБ / 2:00</p>
+          <p class="limit-modal-text" id="limit-message"></p>
+          <p class="limit-modal-details" id="limit-modal-limit"></p>
           <p class="limit-modal-details" id="limit-modal-file"></p>
           <div class="limit-modal-actions">
-            <button class="submit-button" id="trim-action-button" type="button">Обрезать и продолжить</button>
-            <button class="secondary-button" id="replace-action-button" type="button">Выбрать другой</button>
+            <button class="submit-button" id="trim-action-button" type="button"></button>
+            <button class="secondary-button" id="replace-action-button" type="button"></button>
           </div>
         </div>
       </div>

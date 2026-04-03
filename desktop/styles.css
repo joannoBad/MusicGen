@@ -52,6 +52,13 @@ input {
   margin-bottom: 16px;
 }
 
+.hero-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .hero-brand {
   display: flex;
   align-items: center;
@@ -93,6 +100,35 @@ input {
   font-size: 1rem;
   line-height: 1.55;
   color: var(--muted);
+}
+
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(76, 242, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(8, 16, 30, 0.72);
+  box-shadow: inset 0 0 18px rgba(76, 242, 255, 0.06);
+}
+
+.language-pill {
+  min-width: 72px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.language-pill-active {
+  border-color: rgba(76, 242, 255, 0.32);
+  background: linear-gradient(135deg, rgba(10, 24, 39, 0.96), rgba(39, 18, 82, 0.92));
+  color: var(--foreground);
+  box-shadow: var(--glow);
 }
 
 .musicgen-logo {
@@ -887,6 +923,11 @@ input {
 
   .panel-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero-topline {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

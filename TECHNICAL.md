@@ -145,7 +145,7 @@ npm run build:portable
 Default artifact path:
 
 ```text
-desktop/dist/MusicGen-Portable-0.1.1.exe
+desktop/dist/MusicGen-Portable-0.1.2.exe
 ```
 
 ## Linux deployment
