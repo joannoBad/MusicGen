@@ -115,7 +115,7 @@ If you want the build and packaging steps, use the full [technical guide](d:/pro
 
 ![MusicGen home screen](docs/screenshots/home-main.png)
 
-The main web screen with the logo, language switcher, and the project pitch.
+The main English web screen with the logo, language switcher, and the core layout.
 
 ### Mode selection and audio upload
 
@@ -133,19 +133,19 @@ If the uploaded file exceeds the configured limits, MusicGen offers to trim it b
 
 ![Generated password](docs/screenshots/generated-password.png)
 
-The result panel with the generated password, mode, algorithm, and quick actions such as show, hide, and copy.
+The result panel with the generated password, mode, algorithm, and quick actions such as show, hide, and copy after an English-language run.
 
 ### Playback visualization
 
 ![Playback visualization](docs/screenshots/audio-visualizer.png)
 
-The neon playback visualizer that reacts while the uploaded audio is playing.
+The neon playback visualizer reacting to the uploaded audio during playback.
 
 ### Desktop version
 
 ![MusicGen desktop version](docs/screenshots/desktop-version.png)
 
-The standalone offline build that mirrors the web style in a native app window.
+The standalone offline desktop build in English with the same visual style as the web app.
 
 ## For developers
 
